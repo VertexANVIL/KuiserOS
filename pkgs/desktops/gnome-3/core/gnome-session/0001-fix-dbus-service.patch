@@ -1,0 +1,9 @@
+diff --git a/data/gnome-session-restart-dbus.service.in b/data/gnome-session-restart-dbus.service.in
+index e90f6bc..a062b3f 100644
+--- a/data/gnome-session-restart-dbus.service.in
++++ b/data/gnome-session-restart-dbus.service.in
+@@ -8,3 +8,4 @@ DefaultDependencies=no
+ [Service]
+ Type=notify
+ ExecStart=@libexecdir@/gnome-session-ctl --restart-dbus
++Slice=-.slice

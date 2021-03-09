@@ -1,0 +1,80 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1608663846,
+        "narHash": "sha256-YOAXeoNLW0IubQ6AZLGuSj5kAD5n4DYXLYReLtyds1A=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "a68df93a37cd5137ac22ffeb2d8a03acf253cc24",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "ref": "flatten-tree-system",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixos": {
+      "locked": {
+        "narHash": "sha256-CHAKop1NdRc4cz6TtLKO2U7q1RvsdQeHSzXop0SUXAE=",
+        "type": "tarball",
+        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+      }
+    },
+    "nixos-hardware": {
+      "locked": {
+        "lastModified": 1615019476,
+        "narHash": "sha256-BYm1OOJYwPsd6nRT2EsiSWr2rCg3cI9HTlhyYPc8c+Q=",
+        "owner": "NixOS",
+        "repo": "nixos-hardware",
+        "rev": "720d531b1cc0b4824d295bb38f3784aebf91a1a1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "master",
+        "repo": "nixos-hardware",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "narHash": "sha256-CHAKop1NdRc4cz6TtLKO2U7q1RvsdQeHSzXop0SUXAE=",
+        "type": "tarball",
+        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixos": "nixos",
+        "nixos-hardware": "nixos-hardware",
+        "nixpkgs": "nixpkgs",
+        "unstable": "unstable"
+      }
+    },
+    "unstable": {
+      "locked": {
+        "narHash": "sha256-ZjIpLbpQ+PsmxbNOM8kzAWUU+z4R9Yb4JCC2ASan63Q=",
+        "type": "tarball",
+        "url": "https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

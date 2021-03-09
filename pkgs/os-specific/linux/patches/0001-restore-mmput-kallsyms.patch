@@ -1,0 +1,32 @@
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 6d266388d380..6db5a97b2b15 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1117,6 +1117,7 @@ void mmput_async(struct mm_struct *mm)
+ 		schedule_work(&mm->async_put_work);
+ 	}
+ }
++EXPORT_SYMBOL(mmput_async);
+ #endif
+ 
+ /**
+diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
+index fe9de067771c..04b58bccbb0d 100644
+--- a/kernel/kallsyms.c
++++ b/kernel/kallsyms.c
+@@ -176,6 +176,7 @@ unsigned long kallsyms_lookup_name(const char *name)
+ 	}
+ 	return module_kallsyms_lookup_name(name);
+ }
++EXPORT_SYMBOL_GPL(kallsyms_lookup_name);
+ 
+ int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
+ 				      unsigned long),
+@@ -194,6 +195,7 @@ int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
+ 	}
+ 	return module_kallsyms_on_each_symbol(fn, data);
+ }
++EXPORT_SYMBOL_GPL(kallsyms_on_each_symbol);
+ 
+ static unsigned long get_symbol_pos(unsigned long addr,
+ 				    unsigned long *symbolsize,
