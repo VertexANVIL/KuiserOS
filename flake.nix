@@ -3,12 +3,13 @@
 
     inputs = {
         # conventional nixos channels
-        nixos.url = "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz";
-        nixpkgs.url = "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz";
-        unstable.url = "https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz";
+        nixos.url = "nixpkgs/release-20.09";
+        nixpkgs.url = "nixpkgs/release-20.09";
+        unstable.url = "nixpkgs";
 
         flake-utils.url = "github:numtide/flake-utils/flatten-tree-system";
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+        nur.url = "github:nix-community/NUR";
 
         #home-manager = {
         #    url = "github:nix-community/home-manager/master";
@@ -16,7 +17,7 @@
         #};
     };
 
-    outputs = inputs@{ nixos, ... }: let
-        lib = import ./lib { inherit nixos; };
+    outputs = inputs@{ nixos, flake-utils, ... }: let
+        lib = import ./lib { inherit nixos flake-utils; };
     in (lib.mkRootArnixRepo inputs) // { inherit lib; };
 }

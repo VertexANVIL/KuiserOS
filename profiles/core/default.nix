@@ -1,7 +1,4 @@
 { config, lib, pkgs, ... }:
-let inherit (lib) fileContents;
-
-in
 {
     imports = [
         ./boot
@@ -64,11 +61,17 @@ in
         ];
     };
 
-    # neovim as text editor
-    programs.neovim = {
-        enable = true;
-        viAlias = true;
-        vimAlias = true;
+    programs = {
+        # fish is actually configured inside home-manager;
+        # however we need to enable it here so it gets put in /etc/shells
+        fish.enable = true;
+
+        # neovim as text editor
+        neovim = {
+            enable = true;
+            viAlias = true;
+            vimAlias = true;
+        };
     };
 
     fonts = {

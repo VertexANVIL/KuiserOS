@@ -18,13 +18,17 @@
     },
     "nixos": {
       "locked": {
-        "narHash": "sha256-CHAKop1NdRc4cz6TtLKO2U7q1RvsdQeHSzXop0SUXAE=",
-        "type": "tarball",
-        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+        "lastModified": 1615335068,
+        "narHash": "sha256-ARlU5a0NMkXKUcyQ7SWufUbCvnnoztFLXF5fft1d99o=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "ec3b7fca65e9b2e82485604477599f8f7b7fb2b6",
+        "type": "github"
       },
       "original": {
-        "type": "tarball",
-        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+        "id": "nixpkgs",
+        "ref": "release-20.09",
+        "type": "indirect"
       }
     },
     "nixos-hardware": {
@@ -45,13 +49,32 @@
     },
     "nixpkgs": {
       "locked": {
-        "narHash": "sha256-CHAKop1NdRc4cz6TtLKO2U7q1RvsdQeHSzXop0SUXAE=",
-        "type": "tarball",
-        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+        "lastModified": 1615335068,
+        "narHash": "sha256-ARlU5a0NMkXKUcyQ7SWufUbCvnnoztFLXF5fft1d99o=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "ec3b7fca65e9b2e82485604477599f8f7b7fb2b6",
+        "type": "github"
       },
       "original": {
-        "type": "tarball",
-        "url": "https://nixos.org/channels/nixos-20.09/nixexprs.tar.xz"
+        "id": "nixpkgs",
+        "ref": "release-20.09",
+        "type": "indirect"
+      }
+    },
+    "nur": {
+      "locked": {
+        "lastModified": 1615359887,
+        "narHash": "sha256-dBU2Ava8A4gOz3v3Svas//z/zk04adKOY/zRKWL2bJ4=",
+        "owner": "nix-community",
+        "repo": "NUR",
+        "rev": "369ea69f02aacebc0f54e2a68ee89144cfae503a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "NUR",
+        "type": "github"
       }
     },
     "root": {
@@ -60,18 +83,21 @@
         "nixos": "nixos",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs",
+        "nur": "nur",
         "unstable": "unstable"
       }
     },
     "unstable": {
       "locked": {
-        "narHash": "sha256-ZjIpLbpQ+PsmxbNOM8kzAWUU+z4R9Yb4JCC2ASan63Q=",
-        "type": "tarball",
-        "url": "https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz"
+        "lastModified": 1614705646,
+        "narHash": "sha256-FrGDIdOSssMeYjJqYXvikitAmod9m3O2G5tIeVjZfyc=",
+        "path": "/nix/store/86cjk6mv32c232zxrsx4a4barmlpqdkw-source",
+        "rev": "463fd05dcb2056d32b011cf8d2e4626fa8cd9058",
+        "type": "path"
       },
       "original": {
-        "type": "tarball",
-        "url": "https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz"
+        "id": "nixpkgs",
+        "type": "indirect"
       }
     }
   },
