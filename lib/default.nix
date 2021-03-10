@@ -212,4 +212,16 @@ in rec {
             inherit (inputs) arnix;
         });
     };
+
+    # Makes Colmena-compatible flake outputs
+    mkColmenaHive = root: parent: inputs: let
+        system = "x86_64-linux";
+        extern = import ./../extern { inherit inputs; };  
+
+        # build the repository      
+        repo = mkIntermediateArnixRepo root parent inputs;
+        pkgs = (genPkgs root inputs).${system};
+    in repo // rec {
+        
+    };
 }

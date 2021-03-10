@@ -4,7 +4,7 @@
         ./certs
         ./hardening
         ./pam
-        ./secureboot
+        ./secureboot # TODO: should be OPTIONAL!!
         ./smartcard
     ];
 

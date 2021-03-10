@@ -24,6 +24,7 @@ let
         specialArgs = extern.specialArgs // {
             inherit lib; # ????????????
             inherit (self) users profiles;
+            deploymentName = "none";
         };
 
         modules = let
@@ -39,9 +40,9 @@ let
                 };
 
                 nix.nixPath = [
-                    "unstable=${unstable}"
-                    "nixpkgs=${nixos}"
                     "nixos=${nixos}"
+                    "nixpkgs=${nixos}"
+                    "unstable=${unstable}"
                 ];
 
                 nixpkgs = { inherit pkgs; };
@@ -66,10 +67,18 @@ let
                 imports = map (path: "${overrideModulesPath}/${path}") modules;
             };
 
+            # TODO: VERY TEMP!! HACK FIX
+            temp = {
+                options.deployment.keys = with lib; mkOption {
+                    default = {};
+                    type = types.attrs;
+                };
+            };
+
             # Everything in `./modules/list.nix`.
             flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
         in flakeModules ++ [
-            core global local modOverrides
+            core global local modOverrides temp
         ] ++ extern.modules;
     };
 

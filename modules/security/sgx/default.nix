@@ -40,7 +40,7 @@ in
         boot.extraModulePackages = [ cfg.packages.driver ];
         services.udev.packages = [ cfg.packages.psw ];
 
-        environment.systemPackages = [ pkgs.openenclave-sgx ]; # TEMP
+        environment.systemPackages = with pkgs; [ intel-sgx-sdk openenclave-sgx ]; # TEMP
 
         # aesmd depends on auditd
         security.auditd.enable = true;

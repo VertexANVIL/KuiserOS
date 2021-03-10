@@ -15,7 +15,7 @@
         autoOptimiseStore = true;
         optimise.automatic = true;
 
-        #gc.automatic = true;
+        #gc.automatic = true; # TODO: USED for arctarus, dates = daily
 
         extraOptions = ''
             experimental-features = nix-command flakes ca-references
@@ -55,9 +55,6 @@
             binutils coreutils dnsutils
             pciutils iputils moreutils
             utillinux dmidecode
-
-            # misc libraries
-            intel-sgx-sdk
         ];
     };
 

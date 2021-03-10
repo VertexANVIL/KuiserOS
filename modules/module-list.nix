@@ -1,3 +1,11 @@
 [
+    ./security/sftpjail
     ./security/sgx
+    ./security/vault
+    ./services/misc/drone
+    ./services/networking/routinator
+    ./services/networking/tayga
+    ./services/security/vault
+    ./services/web-apps/keycloak
+    ./services/web-apps/mediawiki
 ]
