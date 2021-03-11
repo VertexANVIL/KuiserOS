@@ -61,7 +61,12 @@
     programs = {
         # fish is actually configured inside home-manager;
         # however we need to enable it here so it gets put in /etc/shells
+        # TODO: we do not want this for prod?!
         fish.enable = true;
+
+        # setcap wrappers for security hardening
+        mtr.enable = true;
+        traceroute.enable = true;
 
         # neovim as text editor
         neovim = {

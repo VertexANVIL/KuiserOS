@@ -13,9 +13,9 @@ let
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib; # ????????????
+            inherit lib hostName;
             inherit (self) users profiles;
-            deploymentName = "none";
+            deploymentName = "none"; # TODO for prod
         };
 
         modules = let

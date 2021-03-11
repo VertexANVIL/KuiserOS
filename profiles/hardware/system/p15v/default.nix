@@ -7,6 +7,9 @@
         ../../capabilities/fingerprint
     ];
 
+    # thunderbolt support
+    services.hardware.bolt.enable = true;
+
     # use the newer DCAP SGX driver because we have FLC support
     security.sgx.packages.driver = pkgs.linuxPackages.intel-sgx-dcap;
 }

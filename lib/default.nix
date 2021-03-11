@@ -2,7 +2,7 @@
 let
     inherit (builtins) attrNames attrValues isAttrs readDir isList listToAttrs hasAttr mapAttrs pathExists filter;
     
-    inherit (nixos.lib) all collect fold head tail last unique length hasSuffix removePrefix removeSuffix nameValuePair
+    inherit (nixos.lib) all collect fold flatten head tail last unique length hasSuffix removePrefix removeSuffix nameValuePair
         genList genAttrs optionalAttrs filterAttrs mapAttrs' mapAttrsToList setAttrByPath
         zipAttrsWith zipAttrsWithNames recursiveUpdate nixosSystem mkForce concatLists concatMap
         substring remove optional foldl' elemAt traceVal traceSeq traceSeqN;
@@ -129,7 +129,7 @@ let
         in filterAttrs p files;
 
         f = n: _: optionalAttrs (pathExists "${dir}/${n}/default.nix") {
-            default = "${dir}/${n}";
+            defaults = [ "${dir}/${n}" ];
         } // mkProfileAttrs "${dir}/${n}";
     in mapAttrs f imports;
 
@@ -248,7 +248,7 @@ in rec {
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";
 
     # Reduces profile defaults into their parent attributes
-    mkProfileDefaults = profiles: (map (profile: profile.default)) profiles;
+    mkProfileDefaults = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
     # Produces flake outputs for the root repository
     mkRootArnixRepo = mkArnixRepo ./..;
@@ -258,10 +258,11 @@ in rec {
         repo = mkArnixRepo root (baseInputs // inputs);
 
         # merge together the attrs we need from our parent
+        # TODO: nixosModules cannot be merged here, we need to merge LATER
         merged1 = recursiveMergeAttrsWithNames
-            ["nixosModules" "profiles" "users"] (a: b: a // b) [ parent repo ];
+            ["nixosModules"] (a: b: a // b) [ parent repo ];
         merged2 = recursiveMergeAttrsWithNames
-            ["lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
+            ["profiles" "users" "lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
         both = merged1 // merged2;
     in {
         # bring together our overlays with our parent's

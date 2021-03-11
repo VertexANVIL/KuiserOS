@@ -86,5 +86,7 @@
                 allow id 8087:0a2b with-connect-type "hardwired"
             '';
         };
+
+        hardware.bolt.enable = true;
     };
 }
