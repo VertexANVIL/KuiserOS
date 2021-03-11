@@ -64,10 +64,10 @@ let
     # extern + overlay => { foobar.x86_64-linux }
     genPkgs = root: inputs: let
         inherit (inputs) self;
+        inherit (self._internal) extern;
         inherit (flake-utils.lib) eachDefaultSystem;
     in (eachDefaultSystem (system:
         let
-            extern = import (root + "/extern") { inherit inputs; };
             overridePkgs = pkgImport inputs.override [ ] system;
             overridesOverlay = optionalPath (root + "/overrides") (p: (import p).packages) null;
 
@@ -263,23 +263,22 @@ in rec {
     # Produces flake outputs for the top-level repository
     mkTopLevelArnixRepo = root: parent: inputs: let
         system = "x86_64-linux";
-        extern = import ./../extern { inherit inputs; };  
 
         # build the repository      
         repo = mkIntermediateArnixRepo root parent inputs;
         pkgs = (genPkgs root inputs).${system};
     in repo // rec {
         nixosConfigurations = import ./hosts.nix (recursiveUpdate inputs {
-            inherit pkgs root system extern;
+            inherit pkgs root system;
             inherit (pkgs) lib;
             inherit (inputs) arnix;
+            inherit (repo._internal) extern;
         });
     };
 
     # Makes Colmena-compatible flake outputs
     mkColmenaHive = root: parent: inputs: let
         system = "x86_64-linux";
-        extern = import ./../extern { inherit inputs; };  
 
         # build the repository      
         repo = mkIntermediateArnixRepo root parent inputs;

@@ -11,10 +11,10 @@
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
         nur.url = "github:nix-community/NUR";
 
-        #home-manager = {
-        #    url = "github:nix-community/home-manager/master";
-        #    inputs.nixpkgs.follows = "nixpkgs";
-        #};
+        home = {
+           url = "github:nix-community/home-manager/master";
+           inputs.nixpkgs.follows = "nixpkgs";
+        };
     };
 
     outputs = inputs@{ nixos, flake-utils, ... }: let
