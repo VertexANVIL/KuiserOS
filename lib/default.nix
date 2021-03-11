@@ -3,9 +3,9 @@ let
     inherit (builtins) attrNames attrValues isAttrs readDir listToAttrs mapAttrs
         pathExists filter;
     
-    inherit (nixos.lib) collect fold hasSuffix removePrefix removeSuffix
-        nameValuePair genAttrs optionalAttrs filterAttrs hasAttr mapAttrs' mapAttrsRecursive
-        recursiveUpdate nixosSystem mkForce substring optional;
+    inherit (nixos.lib) collect drop fold head length hasSuffix removePrefix removeSuffix nameValuePair
+        genAttrs optionalAttrs filterAttrs hasAttr mapAttrs' mapAttrsRecursive mapAttrsToList setAttrByPath
+        recursiveUpdate nixosSystem mkForce substring splitString remove optional mkMerge;
     
     dummyOverlay = final: prev: {};
     optionalPathAttrs = path: expr: other: if builtins.pathExists path then expr path else other;
@@ -42,6 +42,15 @@ let
                 let name = removeSuffix ".nix" n; in nameValuePair (name) (_import name)
             else nameValuePair ("") (null)
         ) (readDir dir);
+    
+    # recursively merges attribute sets
+    recursiveMergeAttrs = attrSets:
+    if attrSets == [] then
+        {}
+    else
+        let
+            x = head attrSets;
+        in x // (recursiveMergeAttrs (remove x attrSets));
     
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
@@ -87,6 +96,8 @@ let
     in fold (key: sum: recursiveUpdate sum {
         "${key}" = pkgs.${key};
     }) { } packagesNames;
+    
+    genAttrsFromPaths = paths: recursiveMergeAttrs (map (p: setAttrByPath p.name p.value) paths);
 
     /**
     Synopsis: mkProfileAttrs _path_
@@ -118,8 +129,9 @@ let
             eachDefaultSystem flattenTreeSystem;
 
         # list of module paths -> i.e. security/sgx
+        # too bad we cannot output actual recursive attribute sets :(
         moduleAttrs = paths: genAttrs' paths (path: {
-            name = removePrefix "${root}/modules" (toString path);
+            name = removePrefix "${toString (root + "/modules")}/" (toString path);
             value = import path;
         });
 
@@ -222,6 +234,6 @@ in rec {
         repo = mkIntermediateArnixRepo root parent inputs;
         pkgs = (genPkgs root inputs).${system};
     in repo // rec {
-        
+
     };
 }

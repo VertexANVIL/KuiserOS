@@ -9,20 +9,19 @@ final: prev: {
         });
     });
 
-    # enabling this breaks shit because it tries to evaluate mediaplayer?!?!?!?!?!?!
-    # gnomeExtensions = prev.gnomeExtensions // {
-    #     topicons-plus = prev.gnomeExtensions.topicons-plus.overrideAttrs (o: rec {
-    #         # bump the version so we're compatible with unstable gnome3 (nixos 21.05)
-    #         version = "27";
+    gnomeExtensions = {
+        topicons-plus = prev.gnomeExtensions.topicons-plus.overrideAttrs (o: rec {
+            # bump the version so we're compatible with unstable gnome3 (nixos 21.05)
+            version = "27";
 
-    #         src = prev.fetchFromGitHub {
-    #             owner = "phocean";
-    #             repo = "TopIcons-plus";
-    #             rev = version;
-    #             sha256 = "sha256-efpQPtseYyFaPujNRK6E2tpM9o6+nqqQ39m+T/Smctw=";
-    #         };
+            src = prev.fetchFromGitHub {
+                owner = "phocean";
+                repo = "TopIcons-plus";
+                rev = version;
+                sha256 = "sha256-efpQPtseYyFaPujNRK6E2tpM9o6+nqqQ39m+T/Smctw=";
+            };
 
-    #         meta.broken = false;
-    #     });
-    # };
+            meta.broken = false;
+        });
+    };
 }
