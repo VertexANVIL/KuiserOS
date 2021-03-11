@@ -1,11 +1,11 @@
-{ nixos, flake-utils, ... }:
+{ nixos, flake-utils, baseInputs, ... }:
 let
-    inherit (builtins) attrNames attrValues isAttrs readDir listToAttrs hasAttr mapAttrs pathExists filter;
+    inherit (builtins) attrNames attrValues isAttrs readDir isList listToAttrs hasAttr mapAttrs pathExists filter;
     
-    inherit (nixos.lib) collect fold head length hasSuffix removePrefix removeSuffix nameValuePair
+    inherit (nixos.lib) all collect fold head tail last unique length hasSuffix removePrefix removeSuffix nameValuePair
         genList genAttrs optionalAttrs filterAttrs mapAttrs' mapAttrsToList setAttrByPath
-        zipAttrsWith zipAttrsWithNames recursiveUpdate nixosSystem mkForce
-        substring remove optional foldl' elemAt;
+        zipAttrsWith zipAttrsWithNames recursiveUpdate nixosSystem mkForce concatLists concatMap
+        substring remove optional foldl' elemAt traceVal traceSeq traceSeqN;
     
     # imports all our dependent libraries
     libImports = let
@@ -51,14 +51,19 @@ let
             else nameValuePair ("") (null)
         ) (readDir dir);
     
-    # recursively merges attribute sets
-    recursiveMergeAttrs = attrSets:
-    if attrSets == [] then
-        {}
-    else
-        let
-            x = head attrSets;
-        in x // (recursiveMergeAttrs (remove x attrSets));
+    # Recursively merges attribute sets **and** lists
+    recursiveMerge = attrList: let f = attrPath: zipAttrsWith (n: values:
+        if tail values == [] then head values
+        else if all isList values then unique (concatLists values)
+        else if all isAttrs values then f [n] values
+        else last values
+    ); in f [] attrList;
+
+    recursiveMergeAttrsWithNames = names: f: sets:
+        zipAttrsWithNames names (name: vs: builtins.foldl' f { } vs) sets;
+
+    recursiveMergeAttrsWith = f: sets:
+        recursiveMergeAttrsWithNames (concatMap attrNames sets) f sets;
     
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
@@ -106,7 +111,7 @@ let
         "${key}" = pkgs.${key};
     }) { } packagesNames;
     
-    genAttrsFromPaths = paths: recursiveMergeAttrs (map (p: setAttrByPath p.name p.value) paths);
+    genAttrsFromPaths = paths: recursiveMergeAttrsWith (a: b: a // b) (map (p: setAttrByPath p.name p.value) paths);
 
     /**
     Synopsis: mkProfileAttrs _path_
@@ -250,15 +255,19 @@ in rec {
 
     # Produces flake outputs for intermediate repositories
     mkIntermediateArnixRepo = root: parent: inputs: let
-        repo = mkArnixRepo root inputs;
-        merged = (zipAttrsWithNames ["lib" "nixosModules" "profiles" "users" "_internal"] (
-            name: vs: builtins.foldl' (a: b: recursiveUpdate a b) { } vs
-        ) [ parent repo ]);
+        repo = mkArnixRepo root (baseInputs // inputs);
+
+        # merge together the attrs we need from our parent
+        merged1 = recursiveMergeAttrsWithNames
+            ["nixosModules" "profiles" "users"] (a: b: a // b) [ parent repo ];
+        merged2 = recursiveMergeAttrsWithNames
+            ["lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
+        both = merged1 // merged2;
     in {
         # bring together our overlays with our parent's
         inherit (repo) overlay;
         overlays = [parent.overlay] ++ parent.overlays ++ repo.overlays;
-    } // merged;
+    } // both;
 
     # Produces flake outputs for the top-level repository
     mkTopLevelArnixRepo = root: parent: inputs: let
@@ -268,22 +277,22 @@ in rec {
         repo = mkIntermediateArnixRepo root parent inputs;
         pkgs = (genPkgs root inputs).${system};
     in repo // rec {
-        nixosConfigurations = import ./hosts.nix (recursiveUpdate inputs {
+        nixosConfigurations = import ./hosts.nix {
             inherit pkgs root system;
             inherit (pkgs) lib;
-            inherit (inputs) arnix;
             inherit (repo._internal) extern;
-        });
+            inputs = baseInputs // inputs;
+        };
     };
 
     # Makes Colmena-compatible flake outputs
-    mkColmenaHive = root: parent: inputs: let
-        system = "x86_64-linux";
+    # mkColmenaHive = root: parent: inputs: let
+    #     system = "x86_64-linux";
 
-        # build the repository      
-        repo = mkIntermediateArnixRepo root parent inputs;
-        pkgs = (genPkgs root inputs).${system};
-    in repo // rec {
+    #     # build the repository      
+    #     repo = mkIntermediateArnixRepo root parent inputs;
+    #     pkgs = (genPkgs root inputs).${system};
+    # in repo // rec {
 
-    };
+    # };
 } // libImports

@@ -1,17 +1,8 @@
-{ arnix
-, extern
-, home
-, lib
-, nixos
-, unstable
-, pkgs
-, root
-, self
-, system
-, ...
-}:
+{ inputs, extern, lib, pkgs, root, system, ... }:
 
 let
+    inherit (inputs) self arnix home nixos unstable;
+
     inherit (lib) nixosSystem;
     inherit (lib.arnix) recImport defaultImports;
     inherit (builtins) attrValues removeAttrs;
