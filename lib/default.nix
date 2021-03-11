@@ -1,14 +1,22 @@
 { nixos, flake-utils, ... }:
 let
-    inherit (builtins) attrNames attrValues isAttrs readDir listToAttrs mapAttrs
-        pathExists filter;
+    inherit (builtins) attrNames attrValues isAttrs readDir listToAttrs hasAttr mapAttrs pathExists filter;
     
-    inherit (nixos.lib) collect drop fold head length hasSuffix removePrefix removeSuffix nameValuePair
-        genAttrs optionalAttrs filterAttrs hasAttr mapAttrs' mapAttrsRecursive mapAttrsToList setAttrByPath
-        recursiveUpdate nixosSystem mkForce substring splitString remove optional mkMerge;
+    inherit (nixos.lib) collect fold head length hasSuffix removePrefix removeSuffix nameValuePair
+        genList genAttrs optionalAttrs filterAttrs mapAttrs' mapAttrsToList setAttrByPath
+        zipAttrsWith zipAttrsWithNames recursiveUpdate nixosSystem mkForce
+        substring remove optional foldl' elemAt;
     
-    dummyOverlay = final: prev: {};
-    optionalPathAttrs = path: expr: other: if builtins.pathExists path then expr path else other;
+    # imports all our dependent libraries
+    libImports = let
+        gen = v: zipAttrsWith (name: vs: foldl' (a: b: a // b) {} vs) v;
+    in gen [ ];
+
+    # if path exists, evaluate expr with it, otherwise return other
+    optionalPath = path: expr: other: if builtins.pathExists path then expr path else other;
+
+    # if path exists, import it, otherwise return other
+    optionalPathImport = path: other: optionalPath path (p: import p) other;
     
     # mapFilterAttrs ::
     #   (name -> value -> bool )
@@ -61,7 +69,7 @@ let
         let
             extern = import (root + "/extern") { inherit inputs; };
             overridePkgs = pkgImport inputs.override [ ] system;
-            overridesOverlay = optionalPathAttrs (root + "/overrides") (p: (import p).packages) null;
+            overridesOverlay = optionalPath (root + "/overrides") (p: (import p).packages) null;
 
             overlays = (optional (overridesOverlay != null) (overridesOverlay overridePkgs))
             ++ [
@@ -86,7 +94,8 @@ let
     # Generates the "packages" flake output
     # overlay + overlays = packages
     genPackagesOutput = root: inputs: pkgs: let
-        inherit (inputs.self) overlay overlayAttrs;
+        inherit (inputs.self) overlay;
+        inherit (inputs.self._internal) overlayAttrs;
         
         # grab the package names from all our overlays
         packagesNames = attrNames (overlay null null)
@@ -136,31 +145,41 @@ let
         });
 
         outputs = rec {
-            # this represents the packages we provide
-            overlay = optionalPathAttrs (root + "/pkgs") (p: import p) dummyOverlay;
-            overlays = attrValues overlayAttrs;
+            # shared library functions
+            lib = if (inputs ? lib) then inputs.lib
+                else optionalPathImport (root + "/lib") { };
 
-            # imports all the overlays inside the "overlays" directory
-            overlayAttrs = let
-                overlayDir = root + "/overlays";
-            in optionalPathAttrs overlayDir (p:
-                let
-                    fullPath = name: p + "/${name}";
-                in pathsToImportedAttrs (
-                    map fullPath (attrNames (readDir p))
-                )
-            ) { };
+            # this represents the packages we provide
+            overlay = optionalPathImport (root + "/pkgs") (final: prev: {});
+            overlays = attrValues _internal.overlayAttrs;
 
             # attrs of all our nixos modules
             nixosModules = let
-                cachix = optionalPathAttrs (root + "/cachix.nix")
+                cachix = optionalPath (root + "/cachix.nix")
                     (p: { cachix = import (root + "/cachix.nix"); }) { };
-                modules = optionalPathAttrs (root + "/modules/module-list.nix")
+                modules = optionalPath (root + "/modules/module-list.nix")
                     (p: moduleAttrs (import p)) { };
             in recursiveUpdate cachix modules;
 
-            users = optionalPathAttrs (root + "/users") (p: mkProfileAttrs (toString p)) { };
-            profiles = optionalPathAttrs (root + "/profiles") (p: (mkProfileAttrs (toString p))) { };
+            users = optionalPath (root + "/users") (p: mkProfileAttrs (toString p)) { };
+            profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs (toString p))) { };
+
+            # Internal outputs used only for passing to other Arnix repos
+            _internal = {
+                # import the external input file
+                extern = optionalPath (root + "/extern") (p: import p { inherit inputs; }) { };
+
+                # imports all the overlays inside the "overlays" directory
+                overlayAttrs = let
+                    overlayDir = root + "/overlays";
+                in optionalPath overlayDir (p:
+                    let
+                        fullPath = name: p + "/${name}";
+                    in pathsToImportedAttrs (
+                        map fullPath (attrNames (readDir p))
+                    )
+                ) { };
+            };
         };
 
         # Generate per-system outputs
@@ -185,6 +204,41 @@ in rec {
     # hosts are configured at the top level only
     inherit mapFilterAttrs genAttrs' pathsToImportedAttrs recImport;
 
+    # counts the number of attributes in a set
+    attrCount = set: length (attrNames set);
+
+    # given a list of attribute sets, merges the keys specified by "names" from "defaults" into them if they do not exist
+    defaultSetAttrs = sets: names: defaults: (mapAttrs' (n: v: nameValuePair n (
+        v // genAttrs names (name: (if hasAttr name v then v.${name} else defaults.${name}) )
+    )) sets);
+
+    # maps attrs to list with an extra i iteration parameter
+    imapAttrsToList = f: set: (
+    let
+        keys = attrNames set;
+    in
+    genList (n:
+        let
+            key = elemAt keys n;
+            value = set.${key};
+        in 
+        f n key value
+    ) (length keys));
+
+    # determines whether a given address is IPv6 or not
+    isIPv6 = str: builtins.match ".*:.*" str != null;
+
+    # filters out empty strings and null objects from a list
+    filterListNonEmpty = l: (filter (x: (x != "" && x != null)) l);
+
+    # converts nix files in directory to name/value pairs
+    nixFilesIn = dir: mapAttrs' (name: value: nameValuePair (removeSuffix ".nix" name) (import (dir + "/${name}")))
+        (filterAttrs (name: _: hasSuffix ".nix" name)
+        (builtins.readDir dir));
+
+    # if condition, then return the value, else an empty list
+    optionalList = cond: val: if cond then val else [];
+
     # Constructs a semantic version string from a derivation
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";
 
@@ -197,17 +251,14 @@ in rec {
     # Produces flake outputs for intermediate repositories
     mkIntermediateArnixRepo = root: parent: inputs: let
         repo = mkArnixRepo root inputs;
+        merged = (zipAttrsWithNames ["lib" "nixosModules" "profiles" "users" "_internal"] (
+            name: vs: builtins.foldl' (a: b: recursiveUpdate a b) { } vs
+        ) [ parent repo ]);
     in {
         # bring together our overlays with our parent's
         inherit (repo) overlay;
         overlays = [parent.overlay] ++ parent.overlays ++ repo.overlays;
-
-        # merge together the attrs of our modules, profiles and users
-        # this is not recursive so we will completely override our parent if required
-        nixosModules = parent.nixosModules // repo.nixosModules;
-        profiles = parent.profiles // repo.profiles;
-        users = parent.users // repo.users;
-    };
+    } // merged;
 
     # Produces flake outputs for the top-level repository
     mkTopLevelArnixRepo = root: parent: inputs: let
@@ -236,4 +287,4 @@ in rec {
     in repo // rec {
 
     };
-}
+} // libImports

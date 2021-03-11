@@ -19,5 +19,5 @@
 
     outputs = inputs@{ nixos, flake-utils, ... }: let
         lib = import ./lib { inherit nixos flake-utils; };
-    in (lib.mkRootArnixRepo inputs) // { inherit lib; };
+    in (lib.mkRootArnixRepo (inputs // { inherit lib; }));
 }

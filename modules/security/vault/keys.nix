@@ -64,7 +64,7 @@ let
     assert (assertMsg (backendCount == 1)) "vault key ${key.name}: exactly one backend must be specified";
 
     forEach keyTmpls (template: rec {
-        suffix = if (hasAttr "suffix") template then template.suffix else null;
+        suffix = if template ? suffix then template.suffix else null;
         id = if (suffix != null) then "${key.name}-${template.suffix}" else key.name;
         
         text = concatStrings (flatten [
