@@ -77,9 +77,7 @@ let
             overridesOverlay = optionalPath (root + "/overrides") (p: (import p).packages) null;
 
             overlays = (optional (overridesOverlay != null) (overridesOverlay overridePkgs))
-            ++ [
-                self.overlay
-                (final: prev: {
+            ++ [(final: prev: {
                     # add in our sources
                     srcs = inputs.srcs.inputs;
 
@@ -89,24 +87,21 @@ let
                         arnix = self.lib or inputs.arnix.lib;
                         flake-utils = flake-utils.lib;
                     };
-                })
-            ]
+            })]
             ++ extern.overlays
-            ++ self.overlays;
+            ++ (attrValues self.overlays);
         in { pkgs = pkgImport nixos overlays system; }
     )).pkgs;
 
     # Generates the "packages" flake output
     # overlay + overlays = packages
     genPackagesOutput = root: inputs: pkgs: let
-        inherit (inputs.self) overlay;
-        inherit (inputs.self._internal) overlayAttrs;
+        inherit (inputs.self) overlays;
         
         # grab the package names from all our overlays
-        packagesNames = attrNames (overlay null null)
-            ++ attrNames (fold (attr: sum: recursiveUpdate sum attr) { } (
-                attrValues (mapAttrs (_: v: v null null) overlayAttrs)
-            ));
+        packagesNames = attrNames (fold (attr: sum: recursiveUpdate sum attr) { } (
+            attrValues (mapAttrs (_: v: v null null) overlays)
+        ));
     in fold (key: sum: recursiveUpdate sum {
         "${key}" = pkgs.${key};
     }) { } packagesNames;
@@ -138,7 +133,7 @@ let
     # in map (x: x.default) defaults;
 
     # shared repo creation function
-    mkArnixRepo = root: inputs: let
+    mkArnixRepo = name: root: inputs: let
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
 
@@ -149,14 +144,28 @@ let
             value = import path;
         });
 
+        overlay = optionalPathImport (root + "/pkgs") (final: prev: {});
+
+        # imports all the overlays inside the "overlays" directory
+        overlayAttrs = let
+            overlayDir = root + "/overlays";
+        in optionalPath overlayDir (p:
+            let
+                fullPath = name: p + "/${name}";
+            in pathsToImportedAttrs (
+                map fullPath (attrNames (readDir p))
+            )
+        ) { };
+
         outputs = rec {
             # shared library functions
             lib = if (inputs ? lib) then inputs.lib
                 else optionalPathImport (root + "/lib") { };
 
             # this represents the packages we provide
-            overlay = optionalPathImport (root + "/pkgs") (final: prev: {});
-            overlays = attrValues _internal.overlayAttrs;
+            overlays = overlayAttrs // (genAttrs (attrNames (overlay null null)) (name: (
+                final: prev: { "${name}" = (overlay final prev).${name}; }
+            )));
 
             # attrs of all our nixos modules
             nixosModules = let
@@ -171,19 +180,10 @@ let
 
             # Internal outputs used only for passing to other Arnix repos
             _internal = {
+                inherit name;
+
                 # import the external input file
                 extern = optionalPath (root + "/extern") (p: import p { inherit inputs; }) { };
-
-                # imports all the overlays inside the "overlays" directory
-                overlayAttrs = let
-                    overlayDir = root + "/overlays";
-                in optionalPath overlayDir (p:
-                    let
-                        fullPath = name: p + "/${name}";
-                    in pathsToImportedAttrs (
-                        map fullPath (attrNames (readDir p))
-                    )
-                ) { };
             };
         };
 
@@ -251,23 +251,21 @@ in rec {
     mkProfileDefaults = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
     # Produces flake outputs for the root repository
-    mkRootArnixRepo = mkArnixRepo ./..;
+    mkRootArnixRepo = mkArnixRepo "root" ./..;
 
     # Produces flake outputs for intermediate repositories
-    mkIntermediateArnixRepo = root: parent: inputs: let
-        repo = mkArnixRepo root (baseInputs // inputs);
+    mkIntermediateArnixRepo = name: root: parent: inputs: let
+        repo = mkArnixRepo name root (baseInputs // inputs);
 
         # merge together the attrs we need from our parent
         # TODO: nixosModules cannot be merged here, we need to merge LATER
         merged1 = recursiveMergeAttrsWithNames
-            ["nixosModules"] (a: b: a // b) [ parent repo ];
+            ["nixosModules" "overlays"] (a: b: a // b) [ parent repo ];
         merged2 = recursiveMergeAttrsWithNames
             ["profiles" "users" "lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
         both = merged1 // merged2;
     in {
-        # bring together our overlays with our parent's
-        inherit (repo) overlay;
-        overlays = [parent.overlay] ++ parent.overlays ++ repo.overlays;
+        #overlays = [parent.overlay] ++ parent.overlays ++ repo.overlays;
     } // both;
 
     # Produces flake outputs for the top-level repository
@@ -275,7 +273,7 @@ in rec {
         system = "x86_64-linux";
 
         # build the repository      
-        repo = mkIntermediateArnixRepo root parent inputs;
+        repo = mkIntermediateArnixRepo "toplevel" root parent inputs;
         pkgs = (genPkgs root inputs).${system};
     in repo // rec {
         nixosConfigurations = import ./hosts.nix {

@@ -17,4 +17,17 @@ final: prev: {
 
     # tools
     colmena = prev.callPackage ./tools/package-management/colmena { };
+
+    # python
+    # python3 = prev.python3.override {
+    #     packageOverrides = import ./development/python-modules;
+    # };
+
+    # python37 = prev.python37.override {
+    #     packageOverrides = import ./development/python-modules;
+    # };
+
+    # python38 = prev.python38.override {
+    #     packageOverrides = import ./development/python-modules;
+    # };
 }

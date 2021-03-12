@@ -25,12 +25,6 @@
 
     networking.useDHCP = false;
 
-    services = {
-        gvfs.enable = true;
-        fwupd.enable = true;
-        earlyoom.enable = true;
-    };
-
     users = {
         mutableUsers = false;
 
@@ -41,7 +35,7 @@
     environment = {
         systemPackages = with pkgs; [
             # general purpose tools
-            direnv htop tree jq screen
+            direnv htop tree jq screen rsync
             psmisc ripgrep zip unzip git
 
             # network tools
@@ -59,11 +53,6 @@
     };
 
     programs = {
-        # fish is actually configured inside home-manager;
-        # however we need to enable it here so it gets put in /etc/shells
-        # TODO: we do not want this for prod?!
-        fish.enable = true;
-
         # setcap wrappers for security hardening
         mtr.enable = true;
         traceroute.enable = true;
@@ -76,20 +65,14 @@
         };
     };
 
-    fonts = {
-        fonts = with pkgs; [
-            noto-fonts
-            (nerdfonts.override { fonts = [
-                "FiraCode"
-                "FiraMono"
-            ]; })
-        ];
+    # enable recommended settings by default for nginx
+    services.nginx = {
+        enableReload = lib.mkDefault true;
 
-        fontconfig.defaultFonts = {
-            monospace = [ "FiraMono Nerd Font" ];
-            sansSerif = [ "Noto Sans" ];
-            serif = [ "Noto Serif" ];
-        };
+        recommendedGzipSettings = lib.mkDefault true;
+        recommendedOptimisation = lib.mkDefault true;
+        recommendedProxySettings = lib.mkDefault true;
+        recommendedTlsSettings = lib.mkDefault true;
     };
 
     hardware.enableRedistributableFirmware = true;

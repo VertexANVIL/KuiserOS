@@ -2,6 +2,7 @@
 
 let
     inherit (inputs) self arnix home nixos unstable;
+    inherit (self) users profiles;
 
     inherit (lib) nixosSystem;
     inherit (lib.arnix) recImport defaultImports;
@@ -13,13 +14,12 @@ let
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib hostName;
-            inherit (self) users profiles;
+            inherit lib hostName users profiles;
             deploymentName = "none"; # TODO for prod
         };
 
         modules = let
-            core = ../profiles/core;
+            core.require = profiles.core.defaults;
 
             global = {
                 networking.hostName = hostName;

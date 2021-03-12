@@ -265,7 +265,7 @@ in stdenv.mkDerivation {
 
     meta = with lib; {
         homepage = "https://01.org/intel-softwareguard-extensions";
-        license = licenses.bsd1;
+        license = licenses.bsd3;
         description = "Intel SGX for Linux";
         platforms = platforms.linux;
     };

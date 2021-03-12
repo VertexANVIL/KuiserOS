@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
 
     meta = with lib; {
         homepage = "https://github.com/intel/SGXDataCenterAttestationPrimitives";
-        license = licenses.bsd1;
+        license = licenses.bsd3;
         description = "Kernel module for Intel SGX Datacenter Attestation Primitives";
         platforms = platforms.linux;
     };
