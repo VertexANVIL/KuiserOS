@@ -109,6 +109,22 @@ let
     genAttrsFromPaths = paths: recursiveMergeAttrsWith (a: b: a // b) (map (p: setAttrByPath p.name p.value) paths);
 
     /**
+    Synopsis: mkDeployNodes _nixosConfigurations_
+    Generate the `nodes` attribute expected by deploy-rs
+    where _nixosConfigurations_ are `nodes`.
+    **/
+    mkDeployNodes = deploy: let
+        inherit (baseInputs) deploy;
+    in mapAttrs (_: config: {
+        hostname = config.config.networking.hostName;
+
+        profiles.system = {
+            user = "root";
+            path = deploy.lib.x86_64-linux.activate.nixos config;
+        };
+    });
+
+    /**
     Synopsis: mkProfileAttrs _path_
 
     Recursively import the subdirs of _path_ containing a default.nix.
@@ -264,34 +280,31 @@ in rec {
         merged2 = recursiveMergeAttrsWithNames
             ["profiles" "users" "lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
         both = merged1 // merged2;
-    in {
-        #overlays = [parent.overlay] ++ parent.overlays ++ repo.overlays;
-    } // both;
+    in both;
 
     # Produces flake outputs for the top-level repository
     mkTopLevelArnixRepo = root: parent: inputs: let
+        inherit (baseInputs) deploy;
+        inherit (inputs) self;
         system = "x86_64-linux";
 
         # build the repository      
         repo = mkIntermediateArnixRepo "toplevel" root parent inputs;
         pkgs = (genPkgs root inputs).${system};
-    in repo // rec {
+    in repo // {
         nixosConfigurations = import ./hosts.nix {
             inherit pkgs root system;
             inherit (pkgs) lib;
             inherit (repo._internal) extern;
             inputs = baseInputs // inputs;
         };
+
+        # the following is to support deploy-rs
+        deploy.nodes = mkDeployNodes deploy self.nixosConfigurations;
+
+        # add checks for deploy-rs
+        checks = mapAttrs (system: deployLib:
+            deployLib.deployChecks self.deploy
+        ) deploy.lib;
     };
-
-    # Makes Colmena-compatible flake outputs
-    # mkColmenaHive = root: parent: inputs: let
-    #     system = "x86_64-linux";
-
-    #     # build the repository      
-    #     repo = mkIntermediateArnixRepo root parent inputs;
-    #     pkgs = (genPkgs root inputs).${system};
-    # in repo // rec {
-
-    # };
 } // libImports

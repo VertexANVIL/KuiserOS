@@ -1,0 +1,83 @@
+diff --git a/src/libexpr/flake/flake.cc b/src/libexpr/flake/flake.cc
+index 3e866e1f9..2b3bb618c 100644
+--- a/src/libexpr/flake/flake.cc
++++ b/src/libexpr/flake/flake.cc
+@@ -310,14 +310,16 @@ LockedFlake lockFlake(
+         const FlakeInputs & flakeInputs,
+         std::shared_ptr<Node> node,
+         const InputPath & inputPathPrefix,
+-        std::shared_ptr<const Node> oldNode)>
++        std::shared_ptr<const Node> oldNode,
++        const bool relativeToParent)>
+         computeLocks;
+ 
+     computeLocks = [&](
+         const FlakeInputs & flakeInputs,
+         std::shared_ptr<Node> node,
+         const InputPath & inputPathPrefix,
+-        std::shared_ptr<const Node> oldNode)
++        std::shared_ptr<const Node> oldNode,
++        const bool relativeToParent)
+     {
+         debug("computing lock file node '%s'", printInputPath(inputPathPrefix));
+ 
+@@ -353,11 +355,18 @@ LockedFlake lockFlake(
+                path we haven't processed yet. */
+             if (input.follows) {
+                 InputPath target;
+-                if (hasOverride || input.absolute)
++                if (hasOverride || input.absolute) {
+                     /* 'follows' from an override is relative to the
+-                       root of the graph. */
+-                    target = *input.follows;
+-                else {
++                       root of the graph, but we need to fix up the path for subordinate lockfiles. */
++                    if (relativeToParent) {
++                        target = inputPathPrefix;
++                        target.pop_back();
++
++                        for (auto & i : *input.follows) target.push_back(i);
++                    } else {
++                        target = *input.follows;
++                    }
++                } else {
+                     /* Otherwise, it's relative to the current flake. */
+                     target = inputPathPrefix;
+                     for (auto & i : *input.follows) target.push_back(i);
+@@ -407,7 +416,7 @@ LockedFlake lockFlake(
+                 if (hasChildUpdate) {
+                     auto inputFlake = getFlake(
+                         state, oldLock->lockedRef, false, flakeCache);
+-                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock);
++                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock, relativeToParent);
+                 } else {
+                     /* No need to fetch this flake, we can be
+                        lazy. However there may be new overrides on the
+@@ -429,7 +438,7 @@ LockedFlake lockFlake(
+                         }
+                     }
+ 
+-                    computeLocks(fakeInputs, childNode, inputPath, oldLock);
++                    computeLocks(fakeInputs, childNode, inputPath, oldLock, relativeToParent);
+                 }
+ 
+             } else {
+@@ -471,7 +480,8 @@ LockedFlake lockFlake(
+                         oldLock
+                         ? std::dynamic_pointer_cast<const Node>(oldLock)
+                         : LockFile::read(
+-                            inputFlake.sourceInfo->actualPath + "/" + inputFlake.lockedRef.subdir + "/flake.lock").root);
++                            inputFlake.sourceInfo->actualPath + "/" + inputFlake.lockedRef.subdir + "/flake.lock").root,
++                        !oldLock);
+                 }
+ 
+                 else {
+@@ -486,7 +496,7 @@ LockedFlake lockFlake(
+ 
+     computeLocks(
+         flake.inputs, newLockFile.root, {},
+-        lockFlags.recreateLockFile ? nullptr : oldLockFile.root);
++        lockFlags.recreateLockFile ? nullptr : oldLockFile.root, false);
+ 
+     for (auto & i : lockFlags.inputOverrides)
+         if (!overridesUsed.count(i.first))

@@ -15,6 +15,14 @@
            url = "github:nix-community/home-manager/master";
            inputs.nixpkgs.follows = "nixpkgs";
         };
+
+        deploy = {
+            url = "github:serokell/deploy-rs";
+            inputs = {
+                nixpkgs.follows = "nixpkgs";
+                utils.follows = "flake-utils";
+            };
+        };
     };
 
     outputs = inputs@{ nixos, flake-utils, ... }: let
