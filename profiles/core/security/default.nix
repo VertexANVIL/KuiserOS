@@ -24,10 +24,10 @@
         doas = {
             enable = true;
             extraRules = [
-                {
+                rec {
                     groups = [ "wheel" ];
                     noPass = !config.security.doas.wheelNeedsPassword;
-                    persist = true;
+                    persist = !noPass;
                     setEnv = [ "COLORTERM" "NIX_PATH" "PATH" ];
                 }
             ];

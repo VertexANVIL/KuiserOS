@@ -30,6 +30,11 @@
             binutils coreutils dnsutils
             pciutils iputils moreutils
             utillinux dmidecode
+
+            (neovim.override {
+                viAlias = true;
+                vimAlias = true;
+            })
         ];
     };
 
@@ -39,11 +44,12 @@
         traceroute.enable = true;
 
         # neovim as text editor
-        neovim = {
-            enable = true;
-            viAlias = true;
-            vimAlias = true;
-        };
+        # can't use this until 21.05
+        # neovim = {
+        #     enable = true;
+        #     viAlias = true;
+        #     vimAlias = true;
+        # };
     };
 
     services = {

@@ -1,14 +1,26 @@
-{ inputs, extern, lib, pkgs, root, system, base, ... }:
+{ inputs
+, extern
+, lib
+, pkgs
+, root
+, system
+, base
+, flat
+, ... }:
 
 let
-    inherit (inputs) self arnix home nixos unstable;
+    inherit (inputs) self home nixos unstable;
     inherit (self) users profiles;
 
     inherit (lib) nixosSystem;
-    inherit (lib.arnix) recImport defaultImports;
+    inherit (lib.arnix) recImportFiles recImportDirs defaultImports;
     inherit (builtins) attrValues removeAttrs;
 
-    config = hostName: nixosSystem {
+    config = hostName: let
+        # flat = colmena/nixops style, one folder per host in the root
+        # non-flat = devos style, one .nix file per host in the hosts folder
+        hostFile = root + (if flat then "/${hostName}" else "/hosts/${hostName}.nix");
+    in nixosSystem {
         inherit system;
 
         # note: failing to add imports in here
@@ -39,7 +51,6 @@ let
                 nixpkgs = { inherit pkgs; };
 
                 nix.registry = {
-                    arnix.flake = arnix;
                     nixos.flake = nixos;
                     nixpkgs.flake = nixos;
                 };
@@ -49,15 +60,15 @@ let
 
             deploy = { config, ... }: {
                 options.deployment = with lib; {
-                    hostName = mkOption {
-                        default = with config.config.networking; mkDefault "${hostName}.${domain}";
+                    targetHost = mkOption {
+                        default = with config.networking; mkDefault "${hostName}.${domain}";
                         description = "The fully qualified host name of the node to deploy to.";
                     };
                 };
             };
 
             # import the actual host configuration (i.e. kuiser.nix) at the top level
-            local.require = [(root + "/hosts/${hostName}.nix")];
+            local.require = [ hostFile ];
 
             modOverrides = { config, overrideModulesPath, ... }: let
                 overrides = import ../overrides;
@@ -75,8 +86,11 @@ let
     };
 
     # make attrs for each possible host
-    hosts = recImport {
-        dir = root + "/hosts";
+    hosts = if flat then recImportDirs {
+        dir = root;
         _import = config;
+    } else recImportFiles {
+        dir = root + "/hosts";
+        _import = config; 
     };
 in hosts

@@ -44,10 +44,16 @@ let
             value = import path;
         });
     
-    recImport = { dir, _import ? base: import "${dir}/${base}.nix" }:
+    recImportFiles = { dir, _import }:
         mapFilterAttrs (_: v: v != null) (n: v:
             if n != "default.nix" && hasSuffix ".nix" n && v == "regular" then
                 let name = removeSuffix ".nix" n; in nameValuePair (name) (_import name)
+            else nameValuePair ("") (null)
+        ) (readDir dir);
+    
+    recImportDirs = { dir, _import }:
+        mapFilterAttrs (_: v: v != null) (n: v:
+            if v == "directory" then nameValuePair n (_import n)
             else nameValuePair ("") (null)
         ) (readDir dir);
     
@@ -69,14 +75,12 @@ let
     # extern + overlay => { foobar.x86_64-linux }
     genPkgs = root: inputs: let
         inherit (inputs) self;
-        inherit (self._internal) extern;
+        inherit (self._internal) extern overrides;
         inherit (flake-utils.lib) eachDefaultSystem;
     in (eachDefaultSystem (system:
         let
-            overridePkgs = pkgImport inputs.override [ ] system;
-            overridesOverlay = optionalPath (root + "/overrides") (p: (import p).packages) null;
-
-            overlays = (optional (overridesOverlay != null) (overridesOverlay overridePkgs))
+            overridePkgs = pkgImport baseInputs.unstable [ ] system;
+            overlays = (map (p: p overridePkgs) overrides.packages)
             ++ [(final: prev: {
                     # add in our sources
                     srcs = inputs.srcs.inputs;
@@ -116,7 +120,7 @@ let
     mkDeployNodes = deploy: let
         inherit (baseInputs) deploy;
     in mapAttrs (_: config: {
-        inherit (config.config.options.deployment) hostName;
+        inherit (config.config.deployment) targetHost;
 
         profiles.system = {
             user = "root";
@@ -143,10 +147,6 @@ let
             defaults = [ "${dir}/${n}" ];
         } // mkProfileAttrs "${dir}/${n}";
     in mapAttrs f imports;
-
-    # mkProfileDefaults = profiles: let
-    #     defaults = collect (x: x ? default) profiles;
-    # in map (x: x.default) defaults;
 
     # shared repo creation function
     mkArnixRepo = all@{ name, root, inputs, ... }: let
@@ -198,8 +198,12 @@ let
             _internal = {
                 inherit name;
 
-                # import the external input file
+                # import the external input files
                 extern = optionalPath (root + "/extern") (p: import p { inherit inputs; }) { };
+                overrides = optionalPathImport (root + "/overrides") {
+                    modules = []; disabledModules = [];
+                    packages = [];
+                };
             };
         };
 
@@ -223,7 +227,7 @@ in rec {
     # all repos are merged together to produce a
     # resultant set of modules, profiles, packages, users, and library functions
     # hosts are configured at the top level only
-    inherit mapFilterAttrs genAttrs' pathsToImportedAttrs recImport;
+    inherit mapFilterAttrs genAttrs' pathsToImportedAttrs recImportFiles recImportDirs;
 
     # counts the number of attributes in a set
     attrCount = set: length (attrNames set);
@@ -264,7 +268,7 @@ in rec {
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";
 
     # Reduces profile defaults into their parent attributes
-    mkProfileDefaults = profiles: flatten ((map (profile: profile.defaults)) profiles);
+    mkProf = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
     # Produces flake outputs for the root repository
     mkRootArnixRepo = all@{ inputs, ... }: mkArnixRepo (all // {
@@ -278,14 +282,14 @@ in rec {
 
         # merge together the attrs we need from our parent
         merged1 = recursiveMergeAttrsWithNames
-            ["nixosModules" "overlays"] (a: b: a // b) [ parent repo ];
+            ["nixosModules" "overlays" "packages"] (a: b: a // b) [ parent repo ];
         merged2 = recursiveMergeAttrsWithNames
             ["profiles" "users" "lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
         both = merged1 // merged2;
     in both;
 
     # Produces flake outputs for the top-level repository
-    mkTopLevelArnixRepo = all@{ root, parent, inputs, base ? { }, ... }: let
+    mkTopLevelArnixRepo = all@{ root, parent, inputs, base ? { }, flat ? false, ... }: let
         inherit (baseInputs) deploy;
         inherit (inputs) self;
         system = "x86_64-linux";
@@ -295,7 +299,7 @@ in rec {
         pkgs = (genPkgs root inputs).${system};
     in repo // {
         nixosConfigurations = import ./hosts.nix {
-            inherit pkgs root system base;
+            inherit pkgs root system base flat;
             inherit (pkgs) lib;
             inherit (repo._internal) extern;
             inputs = baseInputs // inputs;
