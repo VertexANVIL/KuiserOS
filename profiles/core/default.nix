@@ -2,35 +2,16 @@
 {
     imports = [
         ./boot
+        ./nix
         ./security
 
         # global hardware profiles
         ../hardware/common
     ];
 
-    nix = {
-        package = pkgs.nixFlakes;
-        systemFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
-
-        autoOptimiseStore = true;
-        optimise.automatic = true;
-
-        #gc.automatic = true; # TODO: USED for arctarus, dates = daily
-
-        extraOptions = ''
-            experimental-features = nix-command flakes ca-references
-            min-free = 536870912
-        '';
-    };
-
     networking.useDHCP = false;
 
-    users = {
-        mutableUsers = false;
-
-        # this group owns /persist/nixos configuration
-        groups.sysconf.gid = 600;
-    };
+    hardware.enableRedistributableFirmware = true;
 
     environment = {
         systemPackages = with pkgs; [
@@ -65,15 +46,18 @@
         };
     };
 
-    # enable recommended settings by default for nginx
-    services.nginx = {
-        enableReload = lib.mkDefault true;
+    services = {
+        # prefer free alternatives
+        mysql.package = lib.mkOptionDefault pkgs.mariadb;
 
-        recommendedGzipSettings = lib.mkDefault true;
-        recommendedOptimisation = lib.mkDefault true;
-        recommendedProxySettings = lib.mkDefault true;
-        recommendedTlsSettings = lib.mkDefault true;
+        # enable recommended settings by default for nginx
+        nginx = {
+            enableReload = lib.mkDefault true;
+
+            recommendedGzipSettings = lib.mkDefault true;
+            recommendedOptimisation = lib.mkDefault true;
+            recommendedProxySettings = lib.mkDefault true;
+            recommendedTlsSettings = lib.mkDefault true;
+        };
     };
-
-    hardware.enableRedistributableFirmware = true;
 }

@@ -1,4 +1,4 @@
-{ inputs, extern, lib, pkgs, root, system, ... }:
+{ inputs, extern, lib, pkgs, root, system, base, ... }:
 
 let
     inherit (inputs) self arnix home nixos unstable;
@@ -47,6 +47,15 @@ let
                 system.configurationRevision = lib.mkIf (self ? rev) self.rev;
             };
 
+            deploy = { config, ... }: {
+                options.deployment = with lib; {
+                    hostName = mkOption {
+                        default = with config.config.networking; mkDefault "${hostName}.${domain}";
+                        description = "The fully qualified host name of the node to deploy to.";
+                    };
+                };
+            };
+
             # import the actual host configuration (i.e. kuiser.nix) at the top level
             local.require = [(root + "/hosts/${hostName}.nix")];
 
@@ -58,18 +67,10 @@ let
                 imports = map (path: "${overrideModulesPath}/${path}") modules;
             };
 
-            # TODO: VERY TEMP!! HACK FIX
-            temp = {
-                options.deployment.keys = with lib; mkOption {
-                    default = {};
-                    type = types.attrs;
-                };
-            };
-
             # Everything in `./modules/list.nix`.
             flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
         in flakeModules ++ [
-            core global local modOverrides temp
+            core global deploy base local modOverrides
         ] ++ extern.modules;
     };
 

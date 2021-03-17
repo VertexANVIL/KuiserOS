@@ -1,20 +1,20 @@
 diff --git a/src/libexpr/flake/flake.cc b/src/libexpr/flake/flake.cc
-index 3e866e1f9..21edc6972 100644
+index 3e866e1f9..8cf20288d 100644
 --- a/src/libexpr/flake/flake.cc
 +++ b/src/libexpr/flake/flake.cc
 @@ -306,20 +306,24 @@ LockedFlake lockFlake(
  
      std::vector<FlakeRef> parents;
  
-+    // relative = are we currently inside a subordinate lockfile?
-+    // relativeDepth = how many levels deep are we inside said lockfile?
++    // flakeDepth = levels deep we are inside subordinate flakes
++    // inputDepth = inputs deep we are relative to the current root or subordinate flake
      std::function<void(
          const FlakeInputs & flakeInputs,
          std::shared_ptr<Node> node,
          const InputPath & inputPathPrefix,
 -        std::shared_ptr<const Node> oldNode)>
 +        std::shared_ptr<const Node> oldNode,
-+        const bool relative, const int relativeDepth)>
++        const int flakeDepth, const int inputDepth)>
          computeLocks;
  
      computeLocks = [&](
@@ -23,14 +23,14 @@ index 3e866e1f9..21edc6972 100644
          const InputPath & inputPathPrefix,
 -        std::shared_ptr<const Node> oldNode)
 +        std::shared_ptr<const Node> oldNode,
-+        const bool relative, const int relativeDepth)
++        const int flakeDepth, const int inputDepth)
      {
 -        debug("computing lock file node '%s'", printInputPath(inputPathPrefix));
-+        debug("computing lock file node '%s' (depth %i)", printInputPath(inputPathPrefix), relativeDepth);
++        debug("computing lock file node '%s' (flake depth %i, input depth %i)", printInputPath(inputPathPrefix), flakeDepth, inputDepth);
  
          /* Get the overrides (i.e. attributes of the form
             'inputs.nixops.inputs.nixpkgs.url = ...'). */
-@@ -353,11 +357,20 @@ LockedFlake lockFlake(
+@@ -353,11 +357,18 @@ LockedFlake lockFlake(
                 path we haven't processed yet. */
              if (input.follows) {
                  InputPath target;
@@ -41,12 +41,10 @@ index 3e866e1f9..21edc6972 100644
 -                    target = *input.follows;
 -                else {
 +                       root of the graph, but we need to fix up the path for subordinate lockfiles. */
-+                    if (relative) {
++                    if (flakeDepth > 0) {
 +                        target = inputPathPrefix;
 +
-+                        // special case for the root of the subordinate - we need to pop once
-+                        if (!relativeDepth) target.pop_back();
-+                        for (int i = 0; i < relativeDepth; i++) target.pop_back();
++                        for (int i = 0; i < (flakeDepth + inputDepth); i++) target.pop_back();
 +                        for (auto & i : *input.follows) target.push_back(i);
 +                    } else {
 +                        target = *input.follows;
@@ -55,40 +53,40 @@ index 3e866e1f9..21edc6972 100644
                      /* Otherwise, it's relative to the current flake. */
                      target = inputPathPrefix;
                      for (auto & i : *input.follows) target.push_back(i);
-@@ -407,7 +420,7 @@ LockedFlake lockFlake(
+@@ -407,7 +418,7 @@ LockedFlake lockFlake(
                  if (hasChildUpdate) {
                      auto inputFlake = getFlake(
                          state, oldLock->lockedRef, false, flakeCache);
 -                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock);
-+                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock, relative, relativeDepth + 1);
++                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock, flakeDepth, inputDepth);
                  } else {
                      /* No need to fetch this flake, we can be
                         lazy. However there may be new overrides on the
-@@ -429,7 +442,7 @@ LockedFlake lockFlake(
+@@ -429,7 +440,7 @@ LockedFlake lockFlake(
                          }
                      }
  
 -                    computeLocks(fakeInputs, childNode, inputPath, oldLock);
-+                    computeLocks(fakeInputs, childNode, inputPath, oldLock, relative, relativeDepth + 1);
++                    computeLocks(fakeInputs, childNode, inputPath, oldLock, flakeDepth, inputDepth);
                  }
  
              } else {
-@@ -471,7 +484,8 @@ LockedFlake lockFlake(
+@@ -471,7 +482,8 @@ LockedFlake lockFlake(
                          oldLock
                          ? std::dynamic_pointer_cast<const Node>(oldLock)
                          : LockFile::read(
 -                            inputFlake.sourceInfo->actualPath + "/" + inputFlake.lockedRef.subdir + "/flake.lock").root);
 +                            inputFlake.sourceInfo->actualPath + "/" + inputFlake.lockedRef.subdir + "/flake.lock").root,
-+                        !oldLock, 0);
++                        oldLock ? flakeDepth : flakeDepth + 1, 0);
                  }
  
                  else {
-@@ -486,7 +500,7 @@ LockedFlake lockFlake(
+@@ -486,7 +498,7 @@ LockedFlake lockFlake(
  
      computeLocks(
          flake.inputs, newLockFile.root, {},
 -        lockFlags.recreateLockFile ? nullptr : oldLockFile.root);
-+        lockFlags.recreateLockFile ? nullptr : oldLockFile.root, false, 0);
++        lockFlags.recreateLockFile ? nullptr : oldLockFile.root, 0, 0);
  
      for (auto & i : lockFlags.inputOverrides)
          if (!overridesUsed.count(i.first))

@@ -74,19 +74,6 @@ let
         ]);
     });
 
-    # buildWebServerAttrs = (server: (
-    #     if (server == "nginx") then {
-    #         user = "nginx";
-    #         group = "nginx";
-    #         postRenew.units = [ "nginx.service" ];
-    #     }
-    #     else if (server == "apache") then {
-    #         user = "www-data";
-    #         group = "www-data";
-    #     }
-    #     else null
-    # ));
-
     backendTypes = {
         kv = types.submodule ({ config, ... }: {
             options = {
@@ -271,6 +258,8 @@ in
         # create a service for every template key
         (listToAttrs (flatten (flip mapAttrsToList finalKeys (_: key:
             let checkScript = (pkgs.writeText "vault-key-${key.name}-check.sh" ''
+                set -euo pipefail
+
                 # check to see if we have all dependencies yet
                 ${concatStrings (forEach key.templates (template: ''
                     if ! [[ -e "/run/vault-keys/.${template.id}.done" ]]; then exit 0; fi
@@ -334,6 +323,7 @@ in
                     tmp = "${prefix}/.${template.id}.tmp";
                     path = "${prefix}/${template.id}";
                 in ''
+                    set -euo pipefail
                     if ! [[ -e "${tmp}" ]]; then exit 0; fi
 
                     touch "${prefix}/.${template.id}.done"
@@ -353,6 +343,8 @@ in
             };
 
             script = ''
+                set -euo pipefail
+
                 # perform actions on dependent units
                 ${concatStrings (forEach key.postRenew.units (unit: (''
                     systemctl reload-or-restart ${unit} --no-block

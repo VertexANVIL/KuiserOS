@@ -116,7 +116,7 @@ let
     mkDeployNodes = deploy: let
         inherit (baseInputs) deploy;
     in mapAttrs (_: config: {
-        hostname = config.config.networking.hostName;
+        inherit (config.config.options.deployment) hostName;
 
         profiles.system = {
             user = "root";
@@ -149,7 +149,7 @@ let
     # in map (x: x.default) defaults;
 
     # shared repo creation function
-    mkArnixRepo = name: root: inputs: let
+    mkArnixRepo = all@{ name, root, inputs, ... }: let
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
 
@@ -267,14 +267,16 @@ in rec {
     mkProfileDefaults = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
     # Produces flake outputs for the root repository
-    mkRootArnixRepo = mkArnixRepo "root" ./..;
+    mkRootArnixRepo = all@{ inputs, ... }: mkArnixRepo (all // {
+        name = "root";
+        root = ./..;
+    });
 
     # Produces flake outputs for intermediate repositories
-    mkIntermediateArnixRepo = name: root: parent: inputs: let
-        repo = mkArnixRepo name root (baseInputs // inputs);
+    mkIntermediateArnixRepo = all@{ name, root, parent, inputs, ... }: let
+        repo = mkArnixRepo (all // { inputs = baseInputs // inputs; });
 
         # merge together the attrs we need from our parent
-        # TODO: nixosModules cannot be merged here, we need to merge LATER
         merged1 = recursiveMergeAttrsWithNames
             ["nixosModules" "overlays"] (a: b: a // b) [ parent repo ];
         merged2 = recursiveMergeAttrsWithNames
@@ -283,17 +285,17 @@ in rec {
     in both;
 
     # Produces flake outputs for the top-level repository
-    mkTopLevelArnixRepo = root: parent: inputs: let
+    mkTopLevelArnixRepo = all@{ root, parent, inputs, base ? { }, ... }: let
         inherit (baseInputs) deploy;
         inherit (inputs) self;
         system = "x86_64-linux";
 
-        # build the repository      
-        repo = mkIntermediateArnixRepo "toplevel" root parent inputs;
+        # build the repository
+        repo = mkIntermediateArnixRepo (all // { name = "toplevel"; });
         pkgs = (genPkgs root inputs).${system};
     in repo // {
         nixosConfigurations = import ./hosts.nix {
-            inherit pkgs root system;
+            inherit pkgs root system base;
             inherit (pkgs) lib;
             inherit (repo._internal) extern;
             inputs = baseInputs // inputs;

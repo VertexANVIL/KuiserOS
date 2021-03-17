@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
     imports = [
         ./certs
@@ -6,6 +6,13 @@
         ./pam
         ./smartcard
     ];
+
+    users = {
+        mutableUsers = false;
+
+        # this group owns /persist/nixos configuration
+        groups.sysconf.gid = 600;
+    };
 
     security = {
         # enable auditing
@@ -19,11 +26,18 @@
             extraRules = [
                 {
                     groups = [ "wheel" ];
-                    noPass = false;
+                    noPass = !config.security.doas.wheelNeedsPassword;
                     persist = true;
                     setEnv = [ "COLORTERM" "NIX_PATH" "PATH" ];
                 }
             ];
         };
+    };
+
+    # firewall hardening - don't allow ping by default
+    # (for routers, it's overridden in their templates)
+    networking.firewall = {
+        allowPing = lib.mkDefault false;
+        logRefusedConnections = lib.mkDefault false;
     };
 }

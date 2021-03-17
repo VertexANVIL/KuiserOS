@@ -14,8 +14,8 @@ let
             ${optionalString cfg.autoAuth.methods.appRole.enable ''
             method "approle" {
                 config = {
-                    role_id_file_path = "/var/run/keys/vault-approle-role-id"
-                    secret_id_file_path = "/var/run/keys/vault-approle-secret-id"
+                    role_id_file_path = "${cfg.autoAuth.methods.appRole.roleIdFile}"
+                    secret_id_file_path = "${cfg.autoAuth.methods.appRole.secretIdFile}"
                     #secret_id_response_wrapping_path = "auth/approle/role/${roleName}/secret-id"
                     remove_secret_id_file_after_reading = false
                 }
@@ -201,10 +201,17 @@ rec {
                 methods = {
                     appRole = {
                         enable = mkEnableOption "AppRole";
-                        roleName = mkOption {
+                        
+                        roleIdFile = mkOption {
                             type = types.str;
-                            default = roleName;
-                            description = "Name of the AppRole to use for authentication";
+                            default = "/var/run/keys/vault-approle-role-id";
+                            description = "The path to the file containing the Role ID.";
+                        };
+
+                        secretIdFile = mkOption {
+                            type = types.str;
+                            default = "/var/run/keys/vault-approle-secret-id";
+                            description = "The path to the file containing the Secret ID.";
                         };
 
                         addMachine = mkOption {
@@ -247,12 +254,6 @@ rec {
                 description = "List of templates for the agent to create";
             };
 
-            storagePath = mkOption {
-                type = types.path;
-                default = "/var/lib/vault-agent";
-                description = "Directory for persistent data";
-            };
-
             extraConfig = mkOption {
                 type = types.lines;
                 default = "";
@@ -282,7 +283,8 @@ rec {
             description = "Vault agent daemon";
 
             wantedBy = [ "multi-user.target" ];
-            after = [ "network.target" ] ++ optionals cfg.autoAuth.methods.appRole.enable [
+            wants = [ "network-online.target" ];
+            after = [ "network-online.target" ] ++ optionals cfg.autoAuth.methods.appRole.enable [
                 "vault-approle-role-id-key.service"
                 "vault-approle-secret-id-key.service"
             ];

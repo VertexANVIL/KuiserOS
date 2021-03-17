@@ -18,8 +18,12 @@ in
     };
 
     networking = {
+        firewall = {
+            allowPing = true;
+            checkReversePath = "loose";
+        };
+
         nat.enable = true;
-        firewall.checkReversePath = "loose";
     };
 
     environment.systemPackages = with pkgs; [

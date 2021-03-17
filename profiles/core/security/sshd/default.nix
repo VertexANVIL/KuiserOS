@@ -1,7 +1,7 @@
 {
     services.openssh = {
         enable = true;
-        #openFirewall = false; # allowing specific hosts
+        passwordAuthentication = false;
         permitRootLogin = "prohibit-password";
     };
 
