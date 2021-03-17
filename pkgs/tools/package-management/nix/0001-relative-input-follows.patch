@@ -1,12 +1,12 @@
 diff --git a/src/libexpr/flake/flake.cc b/src/libexpr/flake/flake.cc
-index 3e866e1f9..55105c902 100644
+index 3e866e1f9..bd4a0ca92 100644
 --- a/src/libexpr/flake/flake.cc
 +++ b/src/libexpr/flake/flake.cc
 @@ -306,20 +306,24 @@ LockedFlake lockFlake(
  
      std::vector<FlakeRef> parents;
  
-+    // subordinate = whether we are currently inside a subordinate flake
++    // isFlake = whether we are currently inside a subordinate flake
 +    // inputDepth = inputs deep we are relative to the current root or subordinate flake
      std::function<void(
          const FlakeInputs & flakeInputs,
@@ -14,7 +14,7 @@ index 3e866e1f9..55105c902 100644
          const InputPath & inputPathPrefix,
 -        std::shared_ptr<const Node> oldNode)>
 +        std::shared_ptr<const Node> oldNode,
-+        const bool subordinate, const int inputDepth)>
++        const bool isFlake, const int inputDepth)>
          computeLocks;
  
      computeLocks = [&](
@@ -23,7 +23,7 @@ index 3e866e1f9..55105c902 100644
          const InputPath & inputPathPrefix,
 -        std::shared_ptr<const Node> oldNode)
 +        std::shared_ptr<const Node> oldNode,
-+        const bool subordinate, const int inputDepth)
++        const bool isFlake, const int inputDepth)
      {
 -        debug("computing lock file node '%s'", printInputPath(inputPathPrefix));
 +        debug("computing lock file node '%s' (depth %i)", printInputPath(inputPathPrefix), inputDepth);
@@ -40,8 +40,8 @@ index 3e866e1f9..55105c902 100644
 -                       root of the graph. */
 -                    target = *input.follows;
 -                else {
-+                       root of the graph, but we need to fix up the path for subordinate lockfiles. */
-+                    if (subordinate) {
++                       root of the graph, but we need to fix up the path for subordinate flakes. */
++                    if (isFlake) {
 +                        target = inputPathPrefix;
 +
 +                        int subtract = inputDepth;
@@ -61,7 +61,7 @@ index 3e866e1f9..55105c902 100644
                      auto inputFlake = getFlake(
                          state, oldLock->lockedRef, false, flakeCache);
 -                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock);
-+                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock, subordinate, inputDepth + 1);
++                    computeLocks(inputFlake.inputs, childNode, inputPath, oldLock, isFlake, inputDepth + 1);
                  } else {
                      /* No need to fetch this flake, we can be
                         lazy. However there may be new overrides on the
@@ -70,22 +70,23 @@ index 3e866e1f9..55105c902 100644
                      }
  
 -                    computeLocks(fakeInputs, childNode, inputPath, oldLock);
-+                    computeLocks(fakeInputs, childNode, inputPath, oldLock, subordinate, inputDepth + 1);
++                    computeLocks(fakeInputs, childNode, inputPath, oldLock, isFlake, inputDepth + 1);
                  }
  
              } else {
-@@ -471,7 +485,9 @@ LockedFlake lockFlake(
+@@ -471,7 +485,10 @@ LockedFlake lockFlake(
                          oldLock
                          ? std::dynamic_pointer_cast<const Node>(oldLock)
                          : LockFile::read(
 -                            inputFlake.sourceInfo->actualPath + "/" + inputFlake.lockedRef.subdir + "/flake.lock").root);
 +                            inputFlake.sourceInfo->actualPath + "/" + inputFlake.lockedRef.subdir + "/flake.lock").root,
-+                        // Increment input depth if we're entering a non-lockfile flake 
-+                        !oldLock, oldLock ? inputDepth + 1 : inputDepth);
++                            // Increment input depth if we're entering a non-lockfile flake 
++                            true, oldLock ? inputDepth + 1 : inputDepth
++                        );
                  }
  
                  else {
-@@ -486,7 +502,7 @@ LockedFlake lockFlake(
+@@ -486,7 +503,7 @@ LockedFlake lockFlake(
  
      computeLocks(
          flake.inputs, newLockFile.root, {},
