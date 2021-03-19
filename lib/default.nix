@@ -120,7 +120,7 @@ let
     mkDeployNodes = deploy: let
         inherit (baseInputs) deploy;
     in mapAttrs (_: config: {
-        inherit (config.config.deployment) targetHost;
+        hostname = config.config.deployment.targetHost;
 
         profiles.system = {
             user = "root";
@@ -213,6 +213,9 @@ let
             pkgs = (genPkgs root inputs).${system};
         in {
             packages = flattenTreeSystem system (genPackagesOutput root inputs pkgs);
+
+            # for `nix develop`
+            devShell = optionalPath (root + "/shell.nix") (p: import p { inherit pkgs; }) { };
 
             # WTF is this shit supposed to do?
             #legacyPackages.hmActivationPackages =

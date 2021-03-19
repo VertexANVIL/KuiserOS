@@ -64,7 +64,7 @@
 
     security = {
         # enable apparmor - not 100% useful yet
-        apparmor.enable = true;
+        #apparmor.enable = true;
 
         allowSimultaneousMultithreading = true;
         forcePageTableIsolation = true;
@@ -80,7 +80,8 @@
     };
 
     services = {
-        dbus.apparmor = "enabled";
+        # TODO: how to do a conditional based on nixos version???
+        #dbus.apparmor = "enabled";
 
         usbguard = {
             # enabled on a per-device basis
