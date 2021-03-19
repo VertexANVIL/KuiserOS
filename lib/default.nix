@@ -289,7 +289,9 @@ in rec {
         merged2 = recursiveMergeAttrsWithNames
             ["profiles" "users" "lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
         both = merged1 // merged2;
-    in both;
+    in both // {
+        inherit (repo) devShell;
+    };
 
     # Produces flake outputs for the top-level repository
     mkTopLevelArnixRepo = all@{ root, parent, inputs, base ? { }, flat ? false, ... }: let
