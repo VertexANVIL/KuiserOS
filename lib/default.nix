@@ -211,11 +211,12 @@ let
         # i.e. x86_64-linux, aarch64-linux
         systemOutputs = eachDefaultSystem (system: let
             pkgs = (genPkgs root inputs).${system};
+            
         in {
             packages = flattenTreeSystem system (genPackagesOutput root inputs pkgs);
 
             # for `nix develop`
-            devShell = optionalPath (root + "/shell.nix") (p: import p { inherit pkgs; }) { };
+            devShell = optionalPath (root + "/shell.nix") (p: import p { inherit pkgs; }) (pkgs.mkShell {});
 
             # WTF is this shit supposed to do?
             #legacyPackages.hmActivationPackages =
@@ -231,6 +232,8 @@ in rec {
     # resultant set of modules, profiles, packages, users, and library functions
     # hosts are configured at the top level only
     inherit mapFilterAttrs genAttrs' pathsToImportedAttrs recImportFiles recImportDirs;
+
+    systemd = import ./systemd.nix;
 
     # counts the number of attributes in a set
     attrCount = set: length (attrNames set);

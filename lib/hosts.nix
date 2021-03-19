@@ -61,6 +61,7 @@ let
             deploy = { config, ... }: {
                 options.deployment = with lib; {
                     targetHost = mkOption {
+                        type = types.str;
                         default = with config.networking; mkDefault "${hostName}.${domain}";
                         description = "The fully qualified host name of the node to deploy to.";
                     };

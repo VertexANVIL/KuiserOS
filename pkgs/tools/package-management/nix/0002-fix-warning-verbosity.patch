@@ -1,0 +1,13 @@
+diff --git a/src/libutil/logging.hh b/src/libutil/logging.hh
+index 96ad69790..b94b4fb68 100644
+--- a/src/libutil/logging.hh
++++ b/src/libutil/logging.hh
+@@ -208,6 +208,8 @@ extern Verbosity verbosity; /* suppress msgs > this */
+ template<typename... Args>
+ inline void warn(const std::string & fs, const Args & ... args)
+ {
++    if (nix::verbosity < lvlWarn) return;
++
+     boost::format f(fs);
+     formatHelper(f, args...);
+     logger->warn(f.str());
