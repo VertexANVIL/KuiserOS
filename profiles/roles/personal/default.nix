@@ -1,5 +1,9 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
+    imports = [
+        ./nfs-fixes.nix
+    ];
+
     services = {
         # for network discovery
         avahi = {
@@ -7,10 +11,30 @@
             nssmdns = true;
         };
 
+        # NFS shares
+        nfs.server = {
+            enable = true;
+
+            statdPort = 4000;
+            lockdPort = 4001;
+            mountdPort = 4002;
+
+            # udp by default
+            extraNfsdConfig = ''
+                udp=y
+            '';
+        };
+
         gvfs.enable = true;
         fwupd.enable = true;
         udisks2.enable = true;
         earlyoom.enable = true;
+    };
+
+    security = {
+        # revert back to sudo, as we need it for development stuff
+        sudo.enable = true;
+        doas.enable = false;
     };
 
     networking.networkmanager = {

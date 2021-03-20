@@ -18,11 +18,11 @@
         # enable auditing
         auditd.enable = true;
 
-        # replace sudo with doas
-        sudo.enable = false;
+        # replace sudo with doas by default
+        sudo.enable = lib.mkDefault false;
 
         doas = {
-            enable = true;
+            enable = lib.mkDefault true;
             extraRules = [
                 rec {
                     groups = [ "wheel" ];
