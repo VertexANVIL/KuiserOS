@@ -16,20 +16,26 @@
     environment = {
         systemPackages = with pkgs; [
             # general purpose tools
-            direnv htop tree jq screen rsync
-            psmisc ripgrep zip unzip git
+            direnv tree jq screen rsync
+            ripgrep zip unzip git pwgen
 
             # network tools
             nmap whois curl wget
+
+            # process tools
+            htop psmisc
 
             # disk partition tools
             cryptsetup dosfstools gptfdisk
             parted fd file ntfs3g
 
-            # low level tools
+            # hardware tools
+            usbutils pciutils
+            lshw hwinfo dmidecode
+
+            # others
             binutils coreutils dnsutils
-            pciutils iputils moreutils
-            utillinux dmidecode
+            iputils moreutils utillinux
 
             (neovim.override {
                 viAlias = true;
