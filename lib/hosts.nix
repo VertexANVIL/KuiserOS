@@ -10,10 +10,11 @@
 
 let
     inherit (inputs) self home nixos unstable;
-    inherit (self) users profiles;
+    inherit (self._internal) repos;
 
     inherit (lib) nixosSystem;
-    inherit (lib.arnix) recImportFiles recImportDirs defaultImports;
+    inherit (lib.arnix) recImportFiles recImportDirs defaultImports
+        recursiveMerge recursiveMergeAttrsWith;
     inherit (builtins) attrValues removeAttrs;
 
     config = hostName: let
@@ -26,12 +27,15 @@ let
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib hostName users profiles;
+            inherit lib hostName repos;
             deploymentName = "none"; # TODO for prod
         };
 
         modules = let
-            core.require = profiles.core.defaults;
+            # merge down core profiles from all repos
+            core.require = (recursiveMergeAttrsWith (
+                a: b: recursiveMerge [ a b ]
+            ) (attrValues repos)).profiles.core.defaults;
 
             global = {
                 networking.hostName = hostName;

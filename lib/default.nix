@@ -191,12 +191,16 @@ let
                     (p: moduleAttrs (import p)) { };
             in recursiveUpdate cachix modules;
 
-            users = optionalPath (root + "/users") (p: mkProfileAttrs (toString p)) { };
-            profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs (toString p))) { };
-
             # Internal outputs used only for passing to other Arnix repos
-            _internal = {
+            _internal = rec {
                 inherit name;
+
+                repos.self = {
+                    users = optionalPath (root + "/users") (p: mkProfileAttrs (toString p)) { };
+                    profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs (toString p))) { };
+                };
+
+                repos."${name}" = repos.self;
 
                 # import the external input files
                 extern = optionalPath (root + "/extern") (p: import p { inherit inputs; }) { };
@@ -231,7 +235,8 @@ in rec {
     # all repos are merged together to produce a
     # resultant set of modules, profiles, packages, users, and library functions
     # hosts are configured at the top level only
-    inherit mapFilterAttrs genAttrs' pathsToImportedAttrs recImportFiles recImportDirs;
+    inherit mapFilterAttrs genAttrs' pathsToImportedAttrs recImportFiles recImportDirs
+        recursiveMerge recursiveMergeAttrsWithNames recursiveMergeAttrsWith;
 
     systemd = import ./systemd.nix;
 
@@ -274,6 +279,7 @@ in rec {
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";
 
     # Reduces profile defaults into their parent attributes
+    # TODO: `mkProf` statements should NEVER try to import profiles from the CURRENT repository, that's just BS
     mkProf = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
     # Produces flake outputs for the root repository
@@ -290,7 +296,7 @@ in rec {
         merged1 = recursiveMergeAttrsWithNames
             ["nixosModules" "overlays" "packages"] (a: b: a // b) [ parent repo ];
         merged2 = recursiveMergeAttrsWithNames
-            ["profiles" "users" "lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
+            ["lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
         both = merged1 // merged2;
     in both // {
         inherit (repo) devShell;
