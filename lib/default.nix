@@ -1,6 +1,7 @@
 { nixos, flake-utils, baseInputs, ... }:
 let
-    inherit (builtins) attrNames attrValues isAttrs readDir isList listToAttrs hasAttr mapAttrs pathExists filter;
+    inherit (builtins) attrNames attrValues isAttrs readDir isList
+        elem listToAttrs hasAttr mapAttrs pathExists filter parseDrvName;
     
     inherit (nixos.lib) all collect fold flatten head tail last unique length hasSuffix removePrefix removeSuffix nameValuePair
         genList genAttrs optionalAttrs filterAttrs mapAttrs' mapAttrsToList setAttrByPath
@@ -27,10 +28,13 @@ let
     # Generate an attribute set by mapping a function over a list of values.
     genAttrs' = values: f: listToAttrs (map f values);
 
-    # pkgImport :: Nixpkgs -> Overlays -> System -> Pkgs
-    pkgImport = nixpkgs: overlays: system: import nixpkgs {
+    # pkgImport :: Nixpkgs -> Overlays -> System -> Unfree -> Pkgs
+    pkgImport = nixpkgs: overlays: system: unfree: import nixpkgs {
         inherit system overlays;
-        config.allowUnfree = true;
+        
+        # predicate for unfree packages
+        config.allowUnfreePredicate = pkg:
+            elem (pkg.pname or (parseDrvName pkg.name).name) unfree;
     };
 
     # Convert a list to file paths to attribute set
@@ -79,7 +83,7 @@ let
         inherit (flake-utils.lib) eachDefaultSystem;
     in (eachDefaultSystem (system:
         let
-            overridePkgs = pkgImport baseInputs.unstable [ ] system;
+            overridePkgs = pkgImport baseInputs.unstable [ ] system overrides.unfree;
             overlays = (map (p: p overridePkgs) overrides.packages)
             ++ [(final: prev: {
                     # add in our sources
@@ -94,7 +98,7 @@ let
             })]
             ++ extern.overlays
             ++ (attrValues self.overlays);
-        in { pkgs = pkgImport nixos overlays system; }
+        in { pkgs = pkgImport nixos overlays system overrides.unfree; }
     )).pkgs;
 
     # Generates the "packages" flake output
@@ -205,7 +209,7 @@ let
                 # import the external input files
                 extern = optionalPath (root + "/extern") (p: import p { inherit inputs; }) { };
                 overrides = optionalPathImport (root + "/overrides") {
-                    modules = []; disabledModules = [];
+                    unfree = []; modules = []; disabledModules = [];
                     packages = [];
                 };
             };
@@ -279,7 +283,6 @@ in rec {
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";
 
     # Reduces profile defaults into their parent attributes
-    # TODO: `mkProf` statements should NEVER try to import profiles from the CURRENT repository, that's just BS
     mkProf = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
     # Produces flake outputs for the root repository
