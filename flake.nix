@@ -11,6 +11,8 @@
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
         nur.url = "github:nix-community/NUR";
 
+        impermanence.url = "github:nix-community/impermanence";
+
         home = {
            url = "github:nix-community/home-manager/master";
            inputs.nixpkgs.follows = "nixpkgs";

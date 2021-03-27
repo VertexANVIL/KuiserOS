@@ -6,6 +6,7 @@ in
 {
     modules = [
         home.nixosModules.home-manager
+        impermanence.nixosModules.impermanence
     ];
 
     overlays = [

@@ -6,7 +6,7 @@
         zfs rollback -r rpool/local/root@blank
     ''; # touch /etc/NIXOS
 
-    # link the config in the persistent volume to the temporary volume
+    # link the nixos config in the persistent volume to the temporary volume
     system.activationScripts.linkPersist = {
         text = ''
             mkPersistDir()
@@ -17,8 +17,6 @@
             }
 
             mkPersistDir /persist/nixos /etc/nixos
-            mkPersistDir /persist/etc/NetworkManager/system-connections /etc/NetworkManager/system-connections
-            mkPersistDir /persist/var/lib/bluetooth /var/lib/bluetooth
 
             # make sure /persist/nixos has correct perms, fine if it doesn't exist yet
             chown -R root:sysconf /persist/nixos > /dev/null 2>&1 || true
@@ -28,6 +26,21 @@
         '';
 
         deps = [];
+    };
+
+    environment.persistence."/persist" = {
+        directories = [
+            "/var/log"
+            "/var/lib/bluetooth"
+            "/var/lib/systemd/coredump"
+            "/etc/NetworkManager/system-connections"
+        ];
+
+        files = [
+            "/etc/machine-id"
+            "/etc/ssh/ssh_host_ed25519_key"
+            "/etc/ssh/ssh_host_rsa_key"
+        ];
     };
 
     # set up our zfs filesystems
@@ -50,6 +63,7 @@
         "/persist" = {
             device = "rpool/safe/persist";
             fsType = "zfs";
+            neededForBoot = true;
         };
     };
 }
