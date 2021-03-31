@@ -271,6 +271,9 @@ in rec {
     # Reduces profile defaults into their parent attributes
     mkProf = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
+    # Retrieves the store path of one of our base inputs
+    mkInputStorePath = input: baseInputs.${input}.outPath;
+
     # Produces flake outputs for the root repository
     mkRootArnixRepo = all@{ inputs, ... }: mkArnixRepo (all // {
         name = "root";

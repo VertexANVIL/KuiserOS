@@ -1,5 +1,8 @@
-{
-    imports = [ <nixpkgs/nixos/modules/virtualisation/openstack-config.nix> ];
+{ lib, pkgs, ... }:
+let
+    inherit (lib.arnix) mkInputStorePath;
+in {
+    imports = [ ((mkInputStorePath "nixpkgs") + "/nixos/modules/virtualisation/openstack-config.nix") ];
 
     networking = {
         interfaces.ens3 = {
