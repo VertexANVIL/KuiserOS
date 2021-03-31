@@ -4,7 +4,7 @@
 
     # allowed unfree packages
     unfree = [
-        "steam" "steam-original" "steam-runtime"
+        "p4" "p4v" "steam" "steam-original" "steam-runtime"
         "nvidia-x11" "nvidia-settings" "nvidia-persistenced"
     ];
 
