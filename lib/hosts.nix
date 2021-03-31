@@ -18,9 +18,8 @@ let
     inherit (builtins) attrValues removeAttrs;
 
     config = hostName: let
-        # flat = colmena/nixops style, one folder per host in the root
-        # non-flat = devos style, one .nix file per host in the hosts folder
-        hostFile = root + (if flat then "/${hostName}" else "/hosts/${hostName}.nix");
+        # flat = hosts live in top-level rather than in "hosts" folder
+        hostFile = root + (if flat then "/${hostName}" else "/hosts/${hostName}");
     in nixosSystem {
         inherit system;
 
@@ -80,11 +79,8 @@ let
     };
 
     # make attrs for each possible host
-    hosts = if flat then recImportDirs {
-        dir = root;
+    hosts = recImportDirs {
+        dir = if flat then root else root + "/hosts";
         _import = config;
-    } else recImportFiles {
-        dir = root + "/hosts";
-        _import = config; 
     };
 in hosts
