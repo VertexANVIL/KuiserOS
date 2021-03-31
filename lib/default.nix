@@ -309,7 +309,7 @@ in rec {
         nixosConfigurations = import ./hosts.nix {
             inherit pkgs root system base flat;
             inherit (pkgs) lib;
-            inherit (repo._internal) extern;
+            inherit (repo._internal) extern overrides;
             inputs = baseInputs // inputs;
         };
 

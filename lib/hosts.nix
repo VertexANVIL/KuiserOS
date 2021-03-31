@@ -1,5 +1,6 @@
 { inputs
 , extern
+, overrides
 , lib
 , pkgs
 , root
@@ -17,16 +18,16 @@ let
         recursiveMerge recursiveMergeAttrsWith;
     inherit (builtins) attrValues removeAttrs;
 
-    config = hostName: let
+    config = name: let
         # flat = hosts live in top-level rather than in "hosts" folder
-        hostFile = root + (if flat then "/${hostName}" else "/hosts/${hostName}");
+        hostFile = root + (if flat then "/${name}" else "/hosts/${name}");
     in nixosSystem {
         inherit system;
 
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib repos;
+            inherit lib repos name;
         };
 
         modules = let
@@ -35,8 +36,8 @@ let
                 a: b: recursiveMerge [ a b ]
             ) (attrValues repos)).profiles.core.defaults;
 
-            global = {
-                networking.hostName = mkDefault hostName;
+            global = { config, ... }: {
+                networking.hostName = mkDefault name;
                 hardware.enableRedistributableFirmware = mkDefault true;
 
                 home-manager = {
@@ -57,6 +58,9 @@ let
                     nixpkgs.flake = nixos;
                 };
 
+                # auto setup for Colmena
+                deployment.targetHost = with config; mkDefault "${networking.hostName}.${networking.domain}";
+
                 system.configurationRevision = lib.mkIf (self ? rev) self.rev;
             };
 
@@ -64,7 +68,6 @@ let
             local.require = [ hostFile ];
 
             modOverrides = { config, overrideModulesPath, ... }: let
-                overrides = import ../overrides;
                 inherit (overrides) modules disabledModules;
             in {
                 disabledModules = modules ++ disabledModules;
