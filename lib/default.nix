@@ -117,22 +117,6 @@ let
     genAttrsFromPaths = paths: recursiveMergeAttrsWith (a: b: a // b) (map (p: setAttrByPath p.name p.value) paths);
 
     /**
-    Synopsis: mkDeployNodes _nixosConfigurations_
-    Generate the `nodes` attribute expected by deploy-rs
-    where _nixosConfigurations_ are `nodes`.
-    **/
-    mkDeployNodes = deploy: let
-        inherit (baseInputs) deploy;
-    in mapAttrs (_: config: {
-        hostname = config.config.deployment.targetHost;
-
-        profiles.system = {
-            user = "root";
-            path = deploy.lib.x86_64-linux.activate.nixos config;
-        };
-    });
-
-    /**
     Synopsis: mkProfileAttrs _path_
 
     Recursively import the subdirs of _path_ containing a default.nix.
@@ -180,7 +164,9 @@ let
         outputs = rec {
             # shared library functions
             lib = if (inputs ? lib) then inputs.lib
-                else optionalPathImport (root + "/lib") { };
+                else optionalPath (root + "/lib") (p: import p {
+                    inherit (nixos) lib;
+                }) { };
 
             # this represents the packages we provide
             overlays = overlayAttrs // (genAttrs (attrNames (overlay null null)) (name: (
@@ -307,9 +293,11 @@ in rec {
 
     # Produces flake outputs for the top-level repository
     mkTopLevelArnixRepo = all@{ root, parent, inputs, base ? { }, flat ? false, ... }: let
-        inherit (baseInputs) deploy;
+        inherit (baseInputs) deploy colmena;
         inherit (inputs) self;
         system = "x86_64-linux";
+
+        inherit (colmena.lib.${system}) mkColmenaHive;
 
         # build the repository
         repo = mkIntermediateArnixRepo (all // { name = "toplevel"; });
@@ -322,12 +310,14 @@ in rec {
             inputs = baseInputs // inputs;
         };
 
-        # the following is to support deploy-rs
-        deploy.nodes = mkDeployNodes deploy self.nixosConfigurations;
+        colmena = mkColmenaHive {
+            inherit system;
+            nodes = self.nixosConfigurations;
+        };
 
         # add checks for deploy-rs
-        checks = mapAttrs (system: deployLib:
-            deployLib.deployChecks self.deploy
-        ) deploy.lib;
+        # checks = mapAttrs (system: deployLib:
+        #     deployLib.deployChecks self.deploy
+        # ) deploy.lib;
     };
 } // libImports

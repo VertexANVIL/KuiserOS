@@ -11,19 +11,12 @@
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
         nur.url = "github:nix-community/NUR";
 
+        colmena.url = "github:ArctarusLimited/colmena/feat/flake-support";
         impermanence.url = "github:nix-community/impermanence";
 
         home = {
-           url = "github:nix-community/home-manager/master";
+           url = "github:nix-community/home-manager/release-20.09";
            inputs.nixpkgs.follows = "nixpkgs";
-        };
-
-        deploy = {
-            url = "github:serokell/deploy-rs";
-            inputs = {
-                nixpkgs.follows = "nixpkgs";
-                utils.follows = "flake-utils";
-            };
         };
     };
 

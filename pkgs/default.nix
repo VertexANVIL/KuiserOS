@@ -15,9 +15,6 @@ final: prev: {
     # os-specific
     linuxPackages = import ./os-specific/linux { inherit final prev; };
 
-    # tools
-    colmena = prev.callPackage ./tools/package-management/colmena { };
-
     # python
     # python3 = prev.python3.override {
     #     packageOverrides = import ./development/python-modules;

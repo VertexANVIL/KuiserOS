@@ -7,13 +7,13 @@ in
     modules = [
         home.nixosModules.home-manager
         impermanence.nixosModules.impermanence
-    ];
+    ] ++ (builtins.attrValues colmena.nixosModules);
 
     overlays = [
         nur.overlay
 
         # for packages imported from flakes
-        (final: prev: { deploy-rs = deploy.packages.${prev.system}.deploy-rs; })
+        (final: prev: { colmena = colmena.packages.${prev.system}.colmena; })
     ];
 
     # passed to all nixos modules

@@ -12,7 +12,7 @@ let
     inherit (inputs) self home nixos unstable;
     inherit (self._internal) repos;
 
-    inherit (lib) nixosSystem;
+    inherit (lib) nixosSystem mkDefault;
     inherit (lib.arnix) recImportFiles recImportDirs defaultImports
         recursiveMerge recursiveMergeAttrsWith;
     inherit (builtins) attrValues removeAttrs;
@@ -27,8 +27,7 @@ let
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib hostName repos;
-            deploymentName = "none"; # TODO for prod
+            inherit lib repos;
         };
 
         modules = let
@@ -38,8 +37,8 @@ let
             ) (attrValues repos)).profiles.core.defaults;
 
             global = {
-                networking.hostName = hostName;
-                hardware.enableRedistributableFirmware = lib.mkDefault true;
+                networking.hostName = mkDefault hostName;
+                hardware.enableRedistributableFirmware = mkDefault true;
 
                 home-manager = {
                     useGlobalPkgs = true;
@@ -62,16 +61,6 @@ let
                 system.configurationRevision = lib.mkIf (self ? rev) self.rev;
             };
 
-            deploy = { config, ... }: {
-                options.deployment = with lib; {
-                    targetHost = mkOption {
-                        type = types.str;
-                        default = with config.networking; mkDefault "${hostName}.${domain}";
-                        description = "The fully qualified host name of the node to deploy to.";
-                    };
-                };
-            };
-
             # import the actual host configuration (i.e. kuiser.nix) at the top level
             local.require = [ hostFile ];
 
@@ -86,7 +75,7 @@ let
             # Everything in `./modules/list.nix`.
             flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
         in flakeModules ++ [
-            core global deploy base local modOverrides
+            core global base local modOverrides
         ] ++ extern.modules;
     };
 

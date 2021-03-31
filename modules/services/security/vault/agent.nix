@@ -1,10 +1,8 @@
-{ config, pkgs, lib, resources, deploymentName, name, ... }:
+{ config, pkgs, lib, resources, deploymentName, ... }:
 
 with lib;
 let
     cfg = config.services.vault-agent;
-    roleName = let prefix = "machines.${deploymentName}"; in
-        if cfg.autoAuth.methods.appRole.addMachine then "${prefix}.${name}" else prefix;
 
     configFile = pkgs.writeText "vault-agent.hcl" ''
         #exit_after_auth = true
@@ -16,7 +14,7 @@ let
                 config = {
                     role_id_file_path = "${cfg.autoAuth.methods.appRole.roleIdFile}"
                     secret_id_file_path = "${cfg.autoAuth.methods.appRole.secretIdFile}"
-                    #secret_id_response_wrapping_path = "auth/approle/role/${roleName}/secret-id"
+                    #secret_id_response_wrapping_path = "auth/approle/role/$roleName/secret-id"
                     remove_secret_id_file_after_reading = false
                 }
             }
@@ -305,18 +303,6 @@ rec {
                 StartLimitInterval = "60s";
                 StartLimitBurst = 3;
             };
-        };
-
-        deployment.keys.vault-approle-role-id = {
-            keyCommand = [ "arc-get-vault-approle-role-id" roleName ];
-            user = "vault-agent";
-            group = "vault-agent";
-        };
-
-        deployment.keys.vault-approle-secret-id = {
-            keyCommand = [ "arc-get-vault-approle-role-secret" roleName ];
-            user = "vault-agent";
-            group = "vault-agent";
         };
     };
 }
