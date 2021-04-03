@@ -1,17 +1,15 @@
 { lib, pkgs, ... }:
 
 let
+    inixCli = pkgs.writeShellScriptBin "inix" ''
+        IFS=';' read -ra ARGS <<< $(${pkgs.inix-helper}/bin/inix-helper)
+        nix "$@" "''\${ARGS[@]}" 
+    '';
+
     # Little helper to run nixos-rebuild while overriding the arnix path
     nrbScript = pkgs.writeShellScriptBin "nrb" ''
-        EXTRA_ARGS=""
-
-        # if ARNIX_REPO_PATH is set and exists use that
-        if [[ -v ARNIX_REPO_PATH ]] && [[ -d "$ARNIX_REPO_PATH" ]]; then
-            echo "Using local Arnix repository at $ARNIX_REPO_PATH."
-            EXTRA_ARGS="$EXTRA_ARGS --no-write-lock-file --override-input arnix $ARNIX_REPO_PATH"
-        fi
-
-        sudo nixos-rebuild $EXTRA_ARGS "$@"
+        IFS=';' read -ra ARGS <<< $(cd /etc/nixos && ${pkgs.inix-helper}/bin/inix-helper)
+        sudo nixos-rebuild "$@" "''\${ARGS[@]}" 
     '';
 in {
     nix = {
@@ -38,5 +36,5 @@ in {
         '';
     };
 
-    environment.systemPackages = [ nrbScript ];
+    environment.systemPackages = [ inixCli nrbScript ];
 }

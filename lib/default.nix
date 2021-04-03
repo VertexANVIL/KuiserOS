@@ -140,6 +140,7 @@ let
     mkArnixRepo = all@{ name, root, inputs, ... }: let
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
+        inherit (inputs) self;
 
         # list of module paths -> i.e. security/sgx
         # too bad we cannot output actual recursive attribute sets :(
@@ -203,19 +204,23 @@ let
 
         # Generate per-system outputs
         # i.e. x86_64-linux, aarch64-linux
-        systemOutputs = eachDefaultSystem (system: let
-            pkgs = (genPkgs root inputs).${system};
-            
-        in {
+        systemOutputs = let
+            mkEachSystem = f: eachDefaultSystem (system: let
+                pkgs = (genPkgs root inputs).${system};
+            in f system pkgs);
+        in (mkEachSystem (system: pkgs: {
+            devShell = pkgs.mkShell self._internal.shell.${system};
             packages = flattenTreeSystem system (genPackagesOutput root inputs pkgs);
-
-            # for `nix develop`
-            devShell = optionalPath (root + "/shell.nix") (p: import p { inherit pkgs; }) (pkgs.mkShell {});
 
             # WTF is this shit supposed to do?
             #legacyPackages.hmActivationPackages =
             #    genHomeActivationPackages { inherit self; };
-        });
+        })) // {
+            _internal = mkEachSystem (system: pkgs: {
+                # this lets children add stuff to the shell
+                shell = optionalPath (root + "/shell.nix") (p: import p { inherit pkgs; }) {};
+            });
+        };
     in recursiveUpdate outputs systemOutputs;
 in rec {
     # setup is as follows:

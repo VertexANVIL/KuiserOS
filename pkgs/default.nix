@@ -15,6 +15,9 @@ final: prev: {
     # os-specific
     linuxPackages = import ./os-specific/linux { inherit final prev; };
 
+    # tools
+    inix-helper = import ./tools/package-management/inix-helper { inherit final prev; };
+
     # python
     # python3 = prev.python3.override {
     #     packageOverrides = import ./development/python-modules;
