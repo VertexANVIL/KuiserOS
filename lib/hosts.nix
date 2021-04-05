@@ -27,7 +27,7 @@ let
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib repos name;
+            inherit lib repos name nodes;
         };
 
         modules = let
@@ -82,8 +82,8 @@ let
     };
 
     # make attrs for each possible host
-    hosts = recImportDirs {
+    nodes = recImportDirs {
         dir = if flat then root else root + "/hosts";
         _import = config;
     };
-in hosts
+in nodes
