@@ -16,13 +16,19 @@
                 ln -sT "$1" "$2"
             }
 
+            setDirAcls()
+            {
+                chown -R root:sysconf "$1" > /dev/null 2>&1 || true
+                find "$1" -type d -exec chmod a+s {} + > /dev/null 2>&1 || true
+                setfacl -R -d --set=u::rwX,g::rwX,o::0 "$1" > /dev/null 2>&1 || true
+                setfacl -R --set=u::rwX,g::rwX,o::0 "$1" > /dev/null 2>&1 || true
+            }
+
             mkPersistDir /persist/nixos /etc/nixos
 
-            # make sure /persist/nixos has correct perms, fine if it doesn't exist yet
-            chown -R root:sysconf /persist/nixos > /dev/null 2>&1 || true
-            find /persist/nixos -type d -exec chmod a+s {} + > /dev/null 2>&1 || true
-            setfacl -R -d --set=u::rwX,g::rwX,o::0 /persist/nixos > /dev/null 2>&1 || true
-            setfacl -R --set=u::rwX,g::rwX,o::0 /persist/nixos > /dev/null 2>&1 || true
+            # correct the permissions
+            setDirAcls /persist/nixos
+            setDirAcls /persist/secrets
         '';
 
         deps = [];

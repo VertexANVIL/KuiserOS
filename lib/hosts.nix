@@ -27,7 +27,7 @@ let
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib repos name nodes;
+            inherit lib repos name nodes root;
         };
 
         modules = let
