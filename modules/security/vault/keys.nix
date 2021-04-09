@@ -37,19 +37,22 @@ let
             let
                 # repr of the certificate
                 certLines = [
-                    "{{ .Data.certificate }}"
-                    "{{ if .Data | contains \"ca_chain\" }}{{ range $cert := .Data.ca_chain }}\n{{ $cert }}{{ end }}{{ end }}"
-                ];
+                    "{{- .Data.certificate }}"
+                ] ++ (optional backend.fullChain [
+                    "{{- if index .Data \"ca_chain\" }}"
+                    "{{- range $cert := .Data.ca_chain }}\n{{ $cert }}{{ end }}"
+                    "{{- end }}"
+                ]);
 
                 # repr of the private key
                 keyLines = [
-                    "{{ .Data.private_key }}"
+                    "{{- .Data.private_key }}"
                 ];
             in
 
             # whether to split or bundle them together
             if backend.bundle then [{
-                body = certLines ++ ["\n"] ++ keyLines;
+                body = certLines ++ keyLines;
             }] else [{
                 suffix = "public";
                 body = certLines;
@@ -67,10 +70,10 @@ let
         suffix = if template ? suffix then template.suffix else null;
         id = if (suffix != null) then "${key.name}-${template.suffix}" else key.name;
         
-        text = concatStrings (flatten [
-            "{{ with secret \"${keyInfo.addr}\" ${formatConsulParams keyInfo.params} }}"
+        text = concatStringsSep "\n" (flatten [
+            "{{- with secret \"${keyInfo.addr}\" ${formatConsulParams keyInfo.params} }}"
             template.body
-            "{{ end }}"
+            "{{- end }}"
         ]);
     });
 
