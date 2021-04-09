@@ -95,7 +95,7 @@ def parse_url_overrides(metadata: Mapping) -> Mapping[str, Set[str]]:
 
     results = {}
     for override in envvar.split(";"):
-        parts = override.split("=")
+        parts = override.rsplit("=", 1)
         if len(parts) != 2:
             continue
         before = parts[0]
