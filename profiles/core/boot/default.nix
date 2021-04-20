@@ -13,5 +13,8 @@
                 configurationLimit = 10;
             };
         };
+
+        # required for setting extra IP addrs
+        kernelModules = ["dummy"];
     };
 }

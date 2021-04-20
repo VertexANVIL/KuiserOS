@@ -12,4 +12,7 @@
 
     # use the newer DCAP SGX driver because we have FLC support
     security.sgx.packages.driver = pkgs.linuxPackages.intel-sgx-dcap;
+
+    # hardware video offload
+    environment.sessionVariables.LIBVA_DRIVER_NAME = "iHD";
 }

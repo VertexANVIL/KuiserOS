@@ -6,6 +6,5 @@
     ./services/networking/routinator
     ./services/networking/tayga
     ./services/security/vault
-    ./services/web-apps/keycloak
     ./services/web-apps/mediawiki
 ]

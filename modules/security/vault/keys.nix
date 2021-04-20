@@ -202,8 +202,8 @@ let
 
             postRenew = {
                 command = mkOption {
-                    default = null;
-                    type = types.nullOr types.str;
+                    default = "";
+                    type = types.str;
                     description = "Optional command to run after the key is renewed.";
                 };
 
@@ -352,6 +352,8 @@ in
                 ${concatStrings (forEach key.postRenew.units (unit: (''
                     systemctl reload-or-restart ${unit} --no-block
                 '')))}
+
+                ${key.postRenew.command}
             '';
         }; }))) //
         

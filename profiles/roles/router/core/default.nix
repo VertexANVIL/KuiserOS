@@ -6,15 +6,9 @@ let
     python-custom = with pkgs; python3.withPackages python-custom-pkgs;
 in
 {
-    boot = {
-        kernel = {
-            sysctl = {
-                "net.ipv4.ip_forward" = 1;
-                "net.ipv6.conf.all.forwarding" = 1;
-            };
-        };
-
-        kernelModules = ["dummy"];
+    boot.kernel.sysctl = {
+        "net.ipv4.ip_forward" = 1;
+        "net.ipv6.conf.all.forwarding" = 1;
     };
 
     networking = {

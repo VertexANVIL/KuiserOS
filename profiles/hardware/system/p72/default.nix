@@ -1,4 +1,4 @@
-{ pkgs, hardware, ... }:
+{ lib, pkgs, hardware, ... }:
 {
     imports = [
         hardware.common-pc-laptop
@@ -17,4 +17,7 @@
 
     # enable nvidia support for Docker as we have a nvidia card
     virtualisation.docker.enableNvidia = true;
+
+    # hardware video offload
+    environment.sessionVariables.LIBVA_DRIVER_NAME = "vdpau";
 }

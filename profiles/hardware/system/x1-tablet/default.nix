@@ -89,4 +89,7 @@
 
         hardware.bolt.enable = true;
     };
+
+    # hardware video offload
+    environment.sessionVariables.LIBVA_DRIVER_NAME = "iHD";
 }
