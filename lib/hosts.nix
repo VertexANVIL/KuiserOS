@@ -5,7 +5,7 @@
 , pkgs
 , root
 , system
-, base
+, bases
 , flat
 , ... }:
 
@@ -76,8 +76,16 @@ let
 
             # Everything in `./modules/list.nix`.
             flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
-        in flakeModules ++ [
-            core global base local modOverrides
+        
+        # **** what is being imported here? ****
+        # core = profile in `profiles/core` which is always imported
+        # global = internal profile which sets up local defaults
+        # bases = list of "base" profiles that come from the flake top-level
+        # local = the actual host configuration
+        # modOverrides = module overrides
+        # extern.modules = modules from external flakes
+        in flakeModules ++ [ core global ] ++ bases ++ [
+            local modOverrides
         ] ++ extern.modules;
     };
 

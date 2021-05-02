@@ -46,7 +46,7 @@ let
 
                 # repr of the private key
                 keyLines = [
-                    "{{- .Data.private_key }}"
+                    "{{ .Data.private_key }}"
                 ];
             in
 

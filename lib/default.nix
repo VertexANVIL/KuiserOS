@@ -137,7 +137,7 @@ let
     in mapAttrs f imports;
 
     # shared repo creation function
-    mkArnixRepo = all@{ name, root, inputs, ... }: let
+    mkInternalArnixRepo = all@{ name, root, inputs, ... }: let
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
         inherit (inputs) self;
@@ -230,8 +230,8 @@ in rec {
     # all repos are merged together to produce a
     # resultant set of modules, profiles, packages, users, and library functions
     # hosts are configured at the top level only
-    inherit mapFilterAttrs genAttrs' pathsToImportedAttrs recImportFiles recImportDirs
-        recursiveMerge recursiveMergeAttrsWithNames recursiveMergeAttrsWith;
+    inherit optionalPath optionalPathImport mapFilterAttrs genAttrs' pathsToImportedAttrs
+        recImportFiles recImportDirs recursiveMerge recursiveMergeAttrsWithNames recursiveMergeAttrsWith;
 
     systemd = import ./systemd.nix;
 
@@ -280,52 +280,68 @@ in rec {
     mkInputStorePath = input: baseInputs.${input}.outPath;
 
     # Produces flake outputs for the root repository
-    mkRootArnixRepo = all@{ inputs, ... }: mkArnixRepo (all // {
+    mkRootArnixRepo = all@{ inputs, ... }: mkInternalArnixRepo (all // {
         name = "root";
         root = ./..;
     });
 
-    # Produces flake outputs for intermediate repositories
-    mkIntermediateArnixRepo = all@{ name, root, parent, inputs, ... }: let
-        repo = mkArnixRepo (all // { inputs = baseInputs // inputs; });
+    # Produces flake outputs for repositories
+    mkArnixRepo = all@{
+        name,
+        root,
+        parent,
+        inputs,
+        bases ? [],
+        flat ? false,
+        system ? "x86_64-linux",
 
-        # merge together the attrs we need from our parent
-        merged1 = recursiveMergeAttrsWithNames
-            ["nixosModules" "overlays" "packages"] (a: b: a // b) [ parent repo ];
-        merged2 = recursiveMergeAttrsWithNames
-            ["lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent repo ];
-        both = merged1 // merged2;
-    in both // {
-        inherit (repo) devShell;
-    };
-
-    # Produces flake outputs for the top-level repository
-    mkTopLevelArnixRepo = all@{ root, parent, inputs, base ? { }, flat ? false, ... }: let
+        # dynamic result generation functor
+        generator ? null
+    }: let
         inherit (baseInputs) deploy colmena;
         inherit (inputs) self;
-        system = "x86_64-linux";
 
         inherit (colmena.lib.${system}) mkColmenaHive;
 
         # build the repository
-        repo = mkIntermediateArnixRepo (all // { name = "toplevel"; });
+        repo = let
+            local = mkInternalArnixRepo (all // { inputs = baseInputs // inputs; });
+
+            # merge together the attrs we need from our parent
+            merged1 = recursiveMergeAttrsWithNames
+                ["nixosModules" "overlays" "packages"] (a: b: a // b) [ parent local ];
+            merged2 = recursiveMergeAttrsWithNames
+                ["lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent local ];
+        in (merged1 // merged2) // {
+            inherit (local) devShell;
+        };
+    
         pkgs = (genPkgs root inputs).${system};
-    in repo // {
-        nixosConfigurations = import ./hosts.nix {
-            inherit pkgs root system base flat;
-            inherit (pkgs) lib;
-            inherit (repo._internal) extern overrides;
-            inputs = baseInputs // inputs;
-        };
 
-        colmena = mkColmenaHive {
-            inherit system;
-            nodes = self.nixosConfigurations;
-        };
+        # function to create our host attrs
+        mkHosts = { root, flat ? false, bases ? [] }: rec {
+            nixosConfigurations = import ./hosts.nix {
+                inherit pkgs root system bases flat;
+                inherit (pkgs) lib;
+                inherit (repo._internal) extern overrides;
+                inputs = baseInputs // inputs;
+            };
 
-        # add checks for deploy-rs
-        # checks = mapAttrs (system: deployLib:
-        #     deployLib.deployChecks self.deploy
-        # ) deploy.lib;
-    };
+            colmena = mkColmenaHive {
+                inherit system;
+                nodes = nixosConfigurations;
+            };
+
+            # add checks for deploy-rs
+            # checks = mapAttrs (system: deployLib:
+            #     deployLib.deployChecks self.deploy
+            # ) deploy.lib;
+        };
+    in repo // (
+        if (generator != null) then
+            generator mkHosts
+        else mkHosts {
+            inherit root flat bases;
+        }
+    );
 } // libImports
