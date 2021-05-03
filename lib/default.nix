@@ -279,6 +279,14 @@ in rec {
     # Retrieves the store path of one of our base inputs
     mkInputStorePath = input: baseInputs.${input}.outPath;
 
+    # Makes a Colmena hive from a system and nodes
+    mkColmenaHiveNodes = system: nodes: let
+        inherit (baseInputs) colmena;
+        inherit (colmena.lib.${system}) mkColmenaHive;
+    in mkColmenaHive {
+        inherit system nodes;
+    };
+
     # Produces flake outputs for the root repository
     mkRootArnixRepo = all@{ inputs, ... }: mkInternalArnixRepo (all // {
         name = "root";
@@ -298,7 +306,7 @@ in rec {
         # dynamic result generation functor
         generator ? null
     }: let
-        inherit (baseInputs) deploy colmena;
+        inherit (baseInputs) colmena;
         inherit (inputs) self;
 
         inherit (colmena.lib.${system}) mkColmenaHive;
@@ -319,7 +327,9 @@ in rec {
         pkgs = (genPkgs root inputs).${system};
 
         # function to create our host attrs
-        mkHosts = { root, flat ? false, bases ? [] }: rec {
+        mkHosts = { root, flat ? false, bases ? [], modifier ? (_: _) }: let
+            
+        in rec {
             nixosConfigurations = import ./hosts.nix {
                 inherit pkgs root system bases flat;
                 inherit (pkgs) lib;
@@ -327,10 +337,8 @@ in rec {
                 inputs = baseInputs // inputs;
             };
 
-            colmena = mkColmenaHive {
-                inherit system;
-                nodes = nixosConfigurations;
-            };
+            prefixedNodes = modifier nixosConfigurations;
+            colmena = mkColmenaHiveNodes system prefixedNodes;
 
             # add checks for deploy-rs
             # checks = mapAttrs (system: deployLib:

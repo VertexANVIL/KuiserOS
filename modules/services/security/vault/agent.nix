@@ -214,7 +214,7 @@ rec {
 
                         addMachine = mkOption {
                             type = types.bool;
-                            default = false;
+                            default = true;
                             description = "If true, suffix the role name with the name of the machine.";
                         };
                     };
