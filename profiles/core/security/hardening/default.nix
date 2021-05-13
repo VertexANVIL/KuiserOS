@@ -86,7 +86,7 @@
         usbguard = {
             # enabled on a per-device basis
             enable = lib.mkDefault false;
-            package = pkgs.usbguard-nox;
+            package = lib.mkDefault pkgs.usbguard-nox;
             rules = builtins.readFile ./usbguard.conf;
 
             IPCAllowedGroups = [ "wheel" ];
