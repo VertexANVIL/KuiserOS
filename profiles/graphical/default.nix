@@ -29,6 +29,9 @@
         };
 
         gnome3.chrome-gnome-shell.enable = true;
+
+        # Use graphical usbguard package
+        usbguard.package = pkgs.usbguard;
     };
 
     security.chromiumSuidSandbox.enable = true;
