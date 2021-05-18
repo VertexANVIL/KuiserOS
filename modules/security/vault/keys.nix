@@ -207,17 +207,19 @@ let
                     description = "Optional command to run after the key is renewed.";
                 };
 
+                restart = mkOption {
+                    default = false;
+                    type = types.bool;
+                    description = "Whether to automatically restart or reload systemd units when the key is renewed.";
+                };
+            };
+
+            dependency = {
                 units = mkOption {
                     default = [];
                     example = "[ \"nginx\" ]";
                     type = types.listOf types.str;
                     description = "Dependent systemd units for the key.";
-                };
-
-                noRestart = mkOption {
-                    default = false;
-                    type = types.bool;
-                    description = "Whether to not restart or reload dependent units on renew.";
                 };
             };
         };
@@ -253,19 +255,20 @@ in
 
         systemd.services = # create a service for every key
         (listToAttrs (flip mapAttrsToList finalKeys (_: key: { name = "vault-key-${key.name}"; value = let
+            # the default template
+            soletmpl = head key.templates;
+
             keyRenderWait = pkgs.writeScriptBin "key-render-wait" (builtins.readFile ./key-render-wait.py);
             destFileNames = concatStringsSep "," (flatten (flip mapAttrsToList key.sinks (_: sink:
-                if (key.template == null && ((length key.templates) > 1)) then (forEach key.templates (
-                    template: "${sink.name}-${template.suffix}"
-                )) else sink.name
+                if (key.template == null && ((length key.templates) > 1)) then (map (t: t.id) key.templates) else soletmpl.id
             )));
         in {
             description = "Vault key activation service";
 
-            before = key.postRenew.units;
+            before = key.dependency.units;
             after = [ "vault-agent.target" ];
             wants = [ "vault-agent.target" ];
-            wantedBy = [ "multi-user.target" ] ++ key.postRenew.units;
+            wantedBy = [ "multi-user.target" ] ++ key.dependency.units;
 
             path = with pkgs; [
                 (python3.withPackages (p: with p; [
@@ -292,7 +295,6 @@ in
                 ${concatStringsSep "\n" (flatten (
                 let
                     prefix = "/run/vault-keys";
-                    soletmpl = head key.templates;
                 in
                 [(flip mapAttrsToList key.sinks (_: sink: let
                     buildKey = render: dest: id: let
@@ -306,7 +308,6 @@ in
                             ${render}
                             chmod ${sink.permissions} "${dest}"
                             chown "${sink.user}:${sink.group}" "${dest}"
-                            rm ${tempFile}
                         fi
                     '';
 
@@ -325,7 +326,7 @@ in
                     # special for key/value keys (file per field)
                     else if (key.backends.kv != null) then let
                         dest = "${prefix}/${sink.name}";
-                    in buildKey ''cat "${prefix}/.${soletmpl.id}.tmp" | ${pkgs.jq}/bin/jq -j -r '.[\"${sink.kv.field}\"]' > "${dest}"'' dest soletmpl.id
+                    in buildKey ''cat "${prefix}/.${soletmpl.id}.tmp" | ${pkgs.jq}/bin/jq -j -r '.["${sink.kv.field}"]' > "${dest}"'' dest soletmpl.id
                         
                     # fallback to regular
                     else buildStandaloneKey))
@@ -335,9 +336,9 @@ in
                 ]))}
 
                 # perform actions on dependent units
-                ${concatStrings (forEach key.postRenew.units (unit: (''
+                ${concatStrings (if key.postRenew.restart then (forEach key.dependency.units (unit: (''
                     systemctl reload-or-restart ${unit} --no-block
-                '')))}
+                ''))) else [])}
 
                 ${key.postRenew.command}
 
