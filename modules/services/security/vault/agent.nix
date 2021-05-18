@@ -14,7 +14,6 @@ let
                 config = {
                     role_id_file_path = "${cfg.autoAuth.methods.appRole.roleIdFile}"
                     secret_id_file_path = "${cfg.autoAuth.methods.appRole.secretIdFile}"
-                    #secret_id_response_wrapping_path = "auth/approle/role/$roleName/secret-id"
                     remove_secret_id_file_after_reading = false
                 }
             }
@@ -199,23 +198,22 @@ rec {
                 methods = {
                     appRole = {
                         enable = mkEnableOption "AppRole";
+
+                        name = mkOption {
+                            type = types.str;
+                            description = "The name of the Role. Used for role pushing and response wrapping.";
+                        };
                         
                         roleIdFile = mkOption {
                             type = types.str;
-                            default = "/var/run/keys/vault-approle-role-id";
+                            default = "/var/lib/vault-agent/role-id";
                             description = "The path to the file containing the Role ID.";
                         };
 
                         secretIdFile = mkOption {
                             type = types.str;
-                            default = "/var/run/keys/vault-approle-secret-id";
+                            default = "/var/lib/vault-agent/secret-id";
                             description = "The path to the file containing the Secret ID.";
-                        };
-
-                        addMachine = mkOption {
-                            type = types.bool;
-                            default = true;
-                            description = "If true, suffix the role name with the name of the machine.";
                         };
                     };
                 };
@@ -282,10 +280,7 @@ rec {
 
             wantedBy = [ "multi-user.target" ];
             wants = [ "network-online.target" ];
-            after = [ "network-online.target" ] ++ optionals cfg.autoAuth.methods.appRole.enable [
-                "vault-approle-role-id-key.service"
-                "vault-approle-secret-id-key.service"
-            ];
+            after = [ "network-online.target" ];
 
             serviceConfig = {
                 User = "vault-agent";

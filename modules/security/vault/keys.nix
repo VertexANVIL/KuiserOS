@@ -46,13 +46,13 @@ let
 
                 # repr of the private key
                 keyLines = [
-                    "{{ .Data.private_key }}"
+                    "{{- .Data.private_key }}"
                 ];
             in
 
             # whether to split or bundle them together
             if backend.bundle then [{
-                body = certLines ++ keyLines;
+                body = certLines ++ [""] ++ keyLines;
             }] else [{
                 suffix = "public";
                 body = certLines;
@@ -213,6 +213,12 @@ let
                     type = types.listOf types.str;
                     description = "Dependent systemd units for the key.";
                 };
+
+                noRestart = mkOption {
+                    default = false;
+                    type = types.bool;
+                    description = "Whether to not restart or reload dependent units on renew.";
+                };
             };
         };
     });
@@ -245,48 +251,68 @@ in
            (flip mapAttrsToList (flip filterAttrs key.sinks (_: sink: sink.user != "root")) (_: sink: (nameValuePair sink.user { extraGroups = [ "keys" ]; })))
         ))));
 
-        systemd.paths =
-        # create a path watcher for every template key
-        (listToAttrs (flatten (flip mapAttrsToList finalKeys (_: key:
-            (forEach key.templates (template: { name = "vault-key-${template.id}"; value = {
-                wantedBy = [ "multi-user.target" ];
-                pathConfig = let path = "/run/vault-keys/.${template.id}.tmp"; in {
-                    PathModified = path;
-                    Unit = "vault-key-${template.id}.service";
-                };
-            }; }))
-        ))));
+        systemd.services = # create a service for every key
+        (listToAttrs (flip mapAttrsToList finalKeys (_: key: { name = "vault-key-${key.name}"; value = let
+            keyRenderWait = pkgs.writeScriptBin "key-render-wait" (builtins.readFile ./key-render-wait.py);
+            destFileNames = concatStringsSep "," (flatten (flip mapAttrsToList key.sinks (_: sink:
+                if (key.template == null && ((length key.templates) > 1)) then (forEach key.templates (
+                    template: "${sink.name}-${template.suffix}"
+                )) else sink.name
+            )));
+        in {
+            description = "Vault key activation service";
 
-        systemd.services =
-        # create a service for every template key
-        (listToAttrs (flatten (flip mapAttrsToList finalKeys (_: key:
-            let checkScript = (pkgs.writeText "vault-key-${key.name}-check.sh" ''
+            before = key.postRenew.units;
+            after = [ "vault-agent.target" ];
+            wants = [ "vault-agent.target" ];
+            wantedBy = [ "multi-user.target" ] ++ key.postRenew.units;
+
+            path = with pkgs; [
+                (python3.withPackages (p: with p; [
+                    inotify-simple
+                ]))
+            ];
+
+            serviceConfig = {
+                Restart = "always";
+                RestartSec = "100ms";
+                TimeoutStartSec = "infinity";
+            };
+
+            preStart = ''
+                # Wait for create/move if any keys don't exist here
+                ${keyRenderWait}/bin/key-render-wait -f ${destFileNames}
+            '';
+
+            script = ''
                 set -euo pipefail
 
-                # check to see if we have all dependencies yet
-                ${concatStrings (forEach key.templates (template: ''
-                    if ! [[ -e "/run/vault-keys/.${template.id}.done" ]]; then exit 0; fi
-                ''))}
-
-                # cleanup .done files
-                ${concatStrings (forEach key.templates (template: ''
-                    rm "/run/vault-keys/.${template.id}.done"
-                ''))}
-
-                # finally render the keys
+                # we are now DONE waiting for all the keys
+                # finally render them
                 ${concatStringsSep "\n" (flatten (
                 let
                     prefix = "/run/vault-keys";
                     soletmpl = head key.templates;
                 in
                 [(flip mapAttrsToList key.sinks (_: sink: let
+                    buildKey = render: dest: id: let
+                        tempFile = "${prefix}/.${id}.tmp";
+                    in
+
+                    # if the temp file doesn't exist, don't attempt to render and instead use the old version
+                    ''
+                        if [[ -f "${tempFile}" ]]; then
+                            rm -rf "${dest}"
+                            ${render}
+                            chmod ${sink.permissions} "${dest}"
+                            chown "${sink.user}:${sink.group}" "${dest}"
+                            rm ${tempFile}
+                        fi
+                    '';
+
                     buildStandaloneKey = let
-                        dest = "${prefix}/${sink.name}"; 
-                    in [
-                        "cp '${prefix}/.${soletmpl.id}.tmp' '${dest}'"
-                        "chmod ${sink.permissions} '${dest}'"
-                        "chown '${sink.user}:${sink.group}' '${dest}'"
-                    ];
+                        dest = "${prefix}/${sink.name}";
+                    in buildKey ''cp "${prefix}/.${soletmpl.id}.tmp" "${dest}"'' dest soletmpl.id;
                 in
                     # we're always standalone if the parent key is overriding with a custom template
                     if key.template != null then buildStandaloneKey
@@ -294,59 +320,19 @@ in
                     # composite keys (suffixed with template suffix)
                     else if (length key.templates) > 1 then (forEach key.templates (template: let
                         dest = "${prefix}/${sink.name}-${template.suffix}";
-                    in [
-                        "cp '${prefix}/.${template.id}.tmp' '${dest}'"
-                        "chmod ${sink.permissions} '${dest}'"
-                        "chown '${sink.user}:${sink.group}' '${dest}'"
-                    ]))
+                    in buildKey ''cp "${prefix}/.${template.id}.tmp" "${dest}"'' dest template.id))
 
                     # special for key/value keys (file per field)
                     else if (key.backends.kv != null) then let
                         dest = "${prefix}/${sink.name}";
-                    in [
-                        "cat '${prefix}/.${soletmpl.id}.tmp' | ${pkgs.jq}/bin/jq -j -r '.[\"${sink.kv.field}\"]' > '${dest}'"
-                        "chmod ${sink.permissions} '${dest}'"
-                        "chown '${sink.user}:${sink.group}' '${dest}'"
-                    ]
+                    in buildKey ''cat "${prefix}/.${soletmpl.id}.tmp" | ${pkgs.jq}/bin/jq -j -r '.[\"${sink.kv.field}\"]' > "${dest}"'' dest soletmpl.id
                         
                     # fallback to regular
                     else buildStandaloneKey))
 
                     # remove the temporary files
-                    (forEach key.templates (template: "rm '${prefix}/.${template.id}.tmp'"))
+                    (forEach key.templates (template: ''rm -f "${prefix}/.${template.id}.tmp"''))
                 ]))}
-
-                # restart the post service
-                systemctl restart vault-key-${key.name}-post.service
-            ''); in
-            (forEach key.templates (template: { name = "vault-key-${template.id}"; value = {
-                serviceConfig.Type = "oneshot";
-                script = let
-                    prefix = "/run/vault-keys";
-                    tmp = "${prefix}/.${template.id}.tmp";
-                    path = "${prefix}/${template.id}";
-                in ''
-                    set -euo pipefail
-                    if ! [[ -e "${tmp}" ]]; then exit 0; fi
-
-                    touch "${prefix}/.${template.id}.done"
-                    source ${checkScript}
-                '';
-            }; }))
-        )))) //
-        
-        # create a service for every key that's activated after all templates complete
-        (listToAttrs (flip mapAttrsToList finalKeys (_: key: { name = "vault-key-${key.name}-post"; value = 
-        {
-            before = key.postRenew.units;
-
-            serviceConfig = {
-                Type = "oneshot";
-                RemainAfterExit = true;
-            };
-
-            script = ''
-                set -euo pipefail
 
                 # perform actions on dependent units
                 ${concatStrings (forEach key.postRenew.units (unit: (''
@@ -354,6 +340,9 @@ in
                 '')))}
 
                 ${key.postRenew.command}
+
+                # Wait for key modification and exit if so
+                ${keyRenderWait}/bin/key-render-wait -m -f ${destFileNames}
             '';
         }; }))) //
         

@@ -5,7 +5,6 @@
 import os
 import sys
 import json
-import logging
 import subprocess
 from typing import List, Set, Mapping
 
@@ -47,7 +46,7 @@ def resolve_path(tree: Mapping, curr: Mapping, path: List[str]) -> Mapping:
     
     # find and resolve the newest segment
     node = curr
-    for segment in path:
+    for _ in path:
         node = resolve_path(tree, node, path[1:])
 
     # we now have the node
