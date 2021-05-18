@@ -8,7 +8,8 @@ from typing import List
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--files", type=str, help="Key filenames to watch", required=True)
+parser.add_argument("-t", "--temp-files", type=str, help="Temporary key filenames to watch", default="")
+parser.add_argument("-s", "--sink-files", type=str, help="Sink key filenames to watch", default="")
 parser.add_argument("-d", "--keydir", type=str, help="The location of the keys", default="/run/vault-keys")
 parser.add_argument("-m", "--modify", action="store_true", help="Tracks modification rather than creation or deletion", default=False)
 args = parser.parse_args()
@@ -22,9 +23,7 @@ def wait_for_existence(files: List[str]):
     inotify = inotify_simple.INotify()
     inotify.add_watch(root, EXIST_FLAGS)
 
-    exist_map = dict((f".{k}.tmp",
-        root.joinpath(k).exists() or root.joinpath(f".{k}.tmp").exists()
-    ) for k in files)
+    exist_map = dict((k, root.joinpath(k).exists()) for k in files)
 
     while True:
         if all(exist_map.values()):
@@ -40,8 +39,6 @@ def wait_for_modification(files: List[str]):
     inotify = inotify_simple.INotify()
     inotify.add_watch(root, MODIFY_FLAGS)
 
-    files = list(map(lambda n: f".{n}.tmp", files))
-
     while True:
         exit = False
         for event in inotify.read():
@@ -53,8 +50,15 @@ def wait_for_modification(files: List[str]):
     print("Key modified or deleted. Process will now exit.")
 
 # temporary key names are i.e ".sso-site-private.tmp"
-files = args.files.split(",")
+temp_files = args.temp_files.split(",")
+sink_files = args.sink_files.split(",")
+
+root = Path(args.keydir)
+
 if args.modify:
-    wait_for_modification(files)
+    wait_for_modification(temp_files)
 else:
-    wait_for_existence(files)
+    if all(list(map(lambda f: root.joinpath(f).exists(), sink_files))):
+        print("All sink files already present. Skipping existence check.")
+        exit(0)
+    wait_for_existence(temp_files)

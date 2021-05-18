@@ -259,8 +259,11 @@ in
             soletmpl = head key.templates;
 
             keyRenderWait = pkgs.writeScriptBin "key-render-wait" (builtins.readFile ./key-render-wait.py);
-            destFileNames = concatStringsSep "," (flatten (flip mapAttrsToList key.sinks (_: sink:
-                if (key.template == null && ((length key.templates) > 1)) then (map (t: t.id) key.templates) else soletmpl.id
+
+            # filenames for the temporary files and target sink files
+            tempFileNames = concatStringsSep "," (map (template: ".${template.id}.tmp") key.templates);
+            sinkFileNames = concatStringsSep "," (flatten (flip mapAttrsToList key.sinks (_: sink:
+                if (key.template == null && ((length key.templates) > 1)) then (map (t: "${sink.name}-${t.suffix}") key.templates) else sink.name
             )));
         in {
             description = "Vault key activation service";
@@ -284,7 +287,7 @@ in
 
             preStart = ''
                 # Wait for create/move if any keys don't exist here
-                ${keyRenderWait}/bin/key-render-wait -f ${destFileNames}
+                ${keyRenderWait}/bin/key-render-wait -t ${tempFileNames} -s ${sinkFileNames}
             '';
 
             script = ''
@@ -343,7 +346,7 @@ in
                 ${key.postRenew.command}
 
                 # Wait for key modification and exit if so
-                ${keyRenderWait}/bin/key-render-wait -m -f ${destFileNames}
+                ${keyRenderWait}/bin/key-render-wait -m -t ${tempFileNames}
             '';
         }; }))) //
         
