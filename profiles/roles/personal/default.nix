@@ -1,6 +1,10 @@
-{ config, lib, pkgs, ... }:
-{
-    imports = [
+{ config, lib, pkgs, repos, ... }: let
+    inherit (lib.arnix) mkProf;
+in {
+    imports = (with repos.root; mkProf [
+        # enable smart card support for personal computers
+        profiles.core.security.smartcard
+    ]) ++ [
         ./nfs-fixes.nix
     ];
 

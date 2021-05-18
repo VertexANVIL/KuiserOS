@@ -332,9 +332,7 @@ in rec {
         pkgs = (genPkgs root inputs).${system};
 
         # function to create our host attrs
-        mkHosts = { root, flat ? false, bases ? [], modifier ? (_: _) }: let
-            
-        in rec {
+        mkHosts = { root, flat ? false, bases ? [], modifier ? (_: _) }: rec {
             nixosConfigurations = import ./hosts.nix {
                 inherit pkgs root system bases flat;
                 inherit (pkgs) lib;
