@@ -38,8 +38,6 @@ def root_install(connection, source, dest, *, owner='root', group='root', mode='
         connection.run(f'rm {temp_file}')
 
 def push_approle(dns, role):
-    print(f"pushing approle for {dns}")
-
     # Read the role ID and secret ID from Vault
     prefix = f"auth/approle/role/{role}"
     role_id = vault.read(f"{prefix}/role-id")["data"]["role_id"]
@@ -76,6 +74,10 @@ result.check_returncode()
 nodes = json.loads(result.stdout)
 
 for node in nodes:
-    push_approle(**node)
+    print(f"pushing approle for {node['dns']}")
+    try:
+        push_approle(**node)
+    except Exception as e:
+        print(f"push failed: {e}")
 
 print("all approles successfully deployed for this flake path")

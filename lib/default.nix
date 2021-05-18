@@ -7,11 +7,6 @@ let
         genList genAttrs optionalAttrs filterAttrs mapAttrs' mapAttrsToList setAttrByPath
         zipAttrsWith zipAttrsWithNames recursiveUpdate nixosSystem mkForce concatLists concatMap
         substring remove optional foldl' elemAt traceVal traceSeq traceSeqN;
-    
-    # imports all our dependent libraries
-    libImports = let
-        gen = v: zipAttrsWith (name: vs: foldl' (a: b: a // b) {} vs) v;
-    in gen [ ];
 
     # if path exists, evaluate expr with it, otherwise return other
     optionalPath = path: expr: other: if builtins.pathExists path then expr path else other;
@@ -81,6 +76,16 @@ let
         inherit (inputs) self;
         inherit (self._internal) extern overrides;
         inherit (flake-utils.lib) eachDefaultSystem;
+
+        # HACKHACK: imports all our dependent libraries
+        extraLib = let
+            gen = v: recursiveMergeAttrsWith (a: b: a // b) (map (p: import p {
+                inherit nixos;
+                inherit (self) lib;
+            }) v);
+        in (gen [
+            ./certs.nix
+        ]);
     in (eachDefaultSystem (system:
         let
             overridePkgs = pkgImport baseInputs.unstable [ ] system overrides.unfree;
@@ -92,7 +97,7 @@ let
                     # extend the "lib" namespace with arnix and flake-utils
                     lib = (prev.lib or { }) // {
                         inherit (nixos.lib) nixosSystem;
-                        arnix = self.lib or inputs.arnix.lib;
+                        arnix = (self.lib or inputs.arnix.lib) // extraLib;
                         flake-utils = flake-utils.lib;
                     };
             })]
@@ -352,4 +357,4 @@ in rec {
             inherit root flat bases;
         }
     );
-} // libImports
+}
