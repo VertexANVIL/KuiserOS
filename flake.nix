@@ -3,8 +3,8 @@
 
     inputs = {
         # conventional nixos channels
-        nixos.url = "nixpkgs/release-20.09";
-        nixpkgs.url = "nixpkgs/release-20.09";
+        nixos.url = "nixpkgs/release-21.05";
+        nixpkgs.url = "nixpkgs/release-21.05";
         unstable.url = "nixpkgs";
 
         flake-utils.url = "github:numtide/flake-utils/flatten-tree-system";
@@ -15,7 +15,7 @@
         impermanence.url = "github:nix-community/impermanence";
 
         home = {
-           url = "github:nix-community/home-manager/release-20.09";
+           url = "github:nix-community/home-manager/release-21.05";
            inputs.nixpkgs.follows = "nixpkgs";
         };
     };
