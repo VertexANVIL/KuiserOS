@@ -1,10 +1,10 @@
 { ... }:
 {
-    # enable gdm and gnome3
+    # enable gdm and gnome
     services.xserver = {
         displayManager.gdm.enable = true;
-        desktopManager.gnome3.enable = true;
+        desktopManager.gnome.enable = true;
     };
 
-    services.gnome3.chrome-gnome-shell.enable = true;
+    services.gnome.chrome-gnome-shell.enable = true;
 }

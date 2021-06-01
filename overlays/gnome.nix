@@ -1,5 +1,5 @@
 final: prev: {
-    gnome3 = prev.gnome3.overrideScope' (finalx: prevx: {
+    gnome = prev.gnome.overrideScope' (finalx: prevx: {
         gnome-session = prevx.gnome-session.overrideAttrs (o: {
             patches = [ ../pkgs/desktops/gnome-3/core/gnome-session/0001-fix-dbus-service.patch ];
         });
@@ -11,17 +11,15 @@ final: prev: {
 
     gnomeExtensions = {
         topicons-plus = prev.gnomeExtensions.topicons-plus.overrideAttrs (o: rec {
-            # bump the version so we're compatible with unstable gnome3 (nixos 21.05)
-            version = "27";
+            # bump the version so we're compatible with unstable gnome (nixos 21.05)
+            version = "37";
 
             src = prev.fetchFromGitHub {
-                owner = "phocean";
-                repo = "TopIcons-plus";
-                rev = version;
-                sha256 = "sha256-efpQPtseYyFaPujNRK6E2tpM9o6+nqqQ39m+T/Smctw=";
+                owner = "ubuntu";
+                repo = "gnome-shell-extension-appindicator";
+                rev = "v${version}";
+                sha256 = "1d8kyhzxi932vmsrr204770h0ww2bq85yjjlwf080r51v8s5jrm6";
             };
-
-            meta.broken = false;
         });
     };
 }

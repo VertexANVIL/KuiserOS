@@ -52,6 +52,7 @@ in
         users = {
             users.aesmd = {
                 group = "aesmd";
+                isSystemUser = true;
                 extraGroups = [ "sgx_prv" ];
                 description = "Intel SGX Service Account";
             };
