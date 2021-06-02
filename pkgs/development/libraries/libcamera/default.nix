@@ -60,9 +60,7 @@ stdenv.mkDerivation {
         python38Packages.sphinx graphviz doxygen
     ];
 
-    mesonFlags = [
-        "-Dv4l2=true"
-    ];
+    mesonFlags = [ "-Dv4l2=true" ];
 
     dontWrapQtApps = true;
 
@@ -71,4 +69,7 @@ stdenv.mkDerivation {
         homepage = "https://libcamera.org";
         license = licenses.bsd2;
     };
+
+    # Fixes error on a deprecated declaration
+    NIX_CFLAGS_COMPILE = [ "-Wno-error=deprecated-declarations" ];
 }

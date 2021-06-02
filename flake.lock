@@ -114,11 +114,11 @@
     },
     "nixos": {
       "locked": {
-        "lastModified": 1622534460,
-        "narHash": "sha256-jWt5MG7zAt3nFcf4O0Txk1qzzYyS6PKFvo4FGSBlLtw=",
+        "lastModified": 1622650995,
+        "narHash": "sha256-byR2LygL2RaAlgwcr2vj7AZgL7Dw9I6HxT1wkqm3reA=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "4eb41db7d8f5aba19c0e05a99bc726476140fdb2",
+        "rev": "297970378b9437541c065f3fef26871397edd2d4",
         "type": "github"
       },
       "original": {
@@ -161,11 +161,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1622534460,
-        "narHash": "sha256-jWt5MG7zAt3nFcf4O0Txk1qzzYyS6PKFvo4FGSBlLtw=",
+        "lastModified": 1622650995,
+        "narHash": "sha256-byR2LygL2RaAlgwcr2vj7AZgL7Dw9I6HxT1wkqm3reA=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "4eb41db7d8f5aba19c0e05a99bc726476140fdb2",
+        "rev": "297970378b9437541c065f3fef26871397edd2d4",
         "type": "github"
       },
       "original": {
@@ -176,11 +176,11 @@
     },
     "nur": {
       "locked": {
-        "lastModified": 1622537106,
-        "narHash": "sha256-xskabhb9pNPg/F5MrUh04SdB1LEm+OnT4ub7uMKhFmc=",
+        "lastModified": 1622661055,
+        "narHash": "sha256-hgWQJo4kw45IS5hEnqTnw4eBTJsiO9qV8jq90b5lTcs=",
         "owner": "nix-community",
         "repo": "NUR",
-        "rev": "f8a9707d2dc71f5e428cc963f01df5d9aa551caf",
+        "rev": "751dd2f0c8a7a8298a514c020fc9c7eba4c1fe29",
         "type": "github"
       },
       "original": {
@@ -204,10 +204,10 @@
     },
     "unstable": {
       "locked": {
-        "lastModified": 1617016828,
-        "narHash": "sha256-yL26XIUR30MgIUanzAIevVp540omjDJKtmNJeTSAQYQ=",
-        "path": "/nix/store/wbax6mhgky46bnyzl5wp6dbj5w4z3sn7-source",
-        "rev": "28bd6fff6e6bc87fa24f3ad575843f5a7c2d3dc3",
+        "lastModified": 1622639230,
+        "narHash": "sha256-46IuKWZLIrbPSwkSg72EjWuWEWzpg3VFXn61mvokX+I=",
+        "path": "/nix/store/m36shd5prc7cf161r961wnqbj5j3g13v-source",
+        "rev": "25dabf0713a8a1926ff6775a9577805860cc9a64",
         "type": "path"
       },
       "original": {

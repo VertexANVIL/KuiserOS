@@ -1,7 +1,7 @@
 { final, prev, ... }:
 
-# linuxPackages is overridden to 5.10 and our own custom modules are added here
-prev.linuxPackages_5_10.extend (finalx: prevx: {
+# linuxPackages is overridden to 5.11 and our own custom modules are added here
+prev.linuxPackages_5_11.extend (finalx: prevx: {
     kernel = prevx.kernel.override {
         kernelPatches = [
             # restores removed mmput_async and kallsyms_lookup exports

@@ -69,9 +69,6 @@
         allowSimultaneousMultithreading = true;
         forcePageTableIsolation = true;
 
-        # currently required for polkit to work properly...
-        # hideProcessInformation = true;
-
         # we want to be able to load modules on demand
         # lockKernelModules = true;
 

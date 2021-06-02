@@ -17,8 +17,6 @@
         };
     };
 
-    security.hideProcessInformation = true;
-
     # TODO: should this be in *all* profiles?
     environment.variables = {
         # Vault Production Hardening:
