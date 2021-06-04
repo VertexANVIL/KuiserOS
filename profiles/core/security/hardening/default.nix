@@ -77,8 +77,8 @@
     };
 
     services = {
-        # TODO: how to do a conditional based on nixos version???
-        #dbus.apparmor = "enabled";
+        # enable dbus apparmor
+        dbus.apparmor = "enabled";
 
         usbguard = {
             # enabled on a per-device basis
