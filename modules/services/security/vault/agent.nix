@@ -2,6 +2,8 @@
 
 with lib;
 let
+    inherit (lib.arnix.systemd) hardeningProfiles;
+
     cfg = config.services.vault-agent;
 
     configFile = pkgs.writeText "vault-agent.hcl" ''
@@ -268,6 +270,7 @@ rec {
             users.vault-agent = {
                 name = "vault-agent";
                 group = "vault-agent";
+                isSystemUser = true;
                 description = "Vault agent user";
                 extraGroups = [ "keys" ];
             };
@@ -275,6 +278,7 @@ rec {
             groups.vault-agent = {};
         };
 
+        # TODO: hardeningProfiles.networked does not allow socketed stuff, but we don't use it anyway...
         systemd.services.vault-agent = {
             description = "Vault agent daemon";
 
@@ -282,19 +286,20 @@ rec {
             wants = [ "network-online.target" ];
             after = [ "network-online.target" ];
 
-            serviceConfig = {
+            serviceConfig = hardeningProfiles.networked // {
                 User = "vault-agent";
                 Group = "vault-agent";
                 ExecStart = "${cfg.package}/bin/vault agent -config ${configFile}";
                 ExecReload = "${pkgs.coreutils}/bin/kill -SIGHUP $MAINPID";
-                PrivateDevices = true;
-                PrivateTmp = true;
-                ProtectSystem = "full";
-                ProtectHome = "read-only";
-                NoNewPrivileges = true;
                 KillSignal = "SIGINT";
                 TimeoutStopSec = "30s";
                 Restart = "always";
+
+                # requires the ipc and sync syscalls in order to not crash
+                SystemCallFilter = subtractLists [ "~@ipc" "~@sync" ] hardeningProfiles.networked.SystemCallFilter;
+            };
+
+            unitConfig = {
                 StartLimitInterval = "60s";
                 StartLimitBurst = 3;
             };
