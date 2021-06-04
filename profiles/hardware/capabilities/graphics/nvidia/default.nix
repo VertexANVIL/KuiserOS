@@ -20,4 +20,8 @@
     '';
 
     hardware.nvidia.modesetting.enable = true;
+
+    # both lines are required to support Docker
+    virtualisation.docker.enableNvidia = true;
+    systemd.enableUnifiedCgroupHierarchy = false;
 }
