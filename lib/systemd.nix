@@ -1,7 +1,7 @@
 rec {
     hardeningProfiles.isolate = {
         CapabilityBoundingSet = "";
-        DeviceAllow = false;
+        DeviceAllow = "";
         IPAddressDeny = "any";
         KeyringMode = "private";
         LockPersonality = true;
