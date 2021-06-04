@@ -3,6 +3,7 @@
     ./security/sgx
     ./security/vault
     ./services/misc/drone
+    ./services/networking/eidolon
     ./services/networking/routinator
     ./services/networking/tayga
     ./services/security/vault
