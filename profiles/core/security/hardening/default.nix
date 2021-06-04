@@ -1,5 +1,6 @@
-{ lib, pkgs, ... }:
-{
+{ lib, pkgs, ... }: let
+    inherit (lib) mkDefault;
+in {
     # This is a subset of the security hardening configuration present in nixpkgs
     # The goal here is to turn on as many hardening options as we can without sacrificing performance or usability
     nix = {
@@ -33,8 +34,8 @@
             # Hide kptrs even for processes with CAP_SYSLOG
             "kernel.kptr_restrict" = 2;
 
-            # Don't enable this, we want to be able to debug the kernel
-            #"kernel.ftrace_enabled" = false;
+            # Disable ftrace by default, restricting kernel debugging
+            "kernel.ftrace_enabled" = mkDefault false;
 
             # Enable strict reverse path filtering (that is, do not attempt to route
             # packets that "obviously" do not belong to the iface's network; dropped
@@ -82,8 +83,8 @@
 
         usbguard = {
             # enabled on a per-device basis
-            enable = lib.mkDefault false;
-            package = lib.mkDefault pkgs.usbguard-nox;
+            enable = mkDefault false;
+            package = mkDefault pkgs.usbguard-nox;
             rules = builtins.readFile ./usbguard.conf;
 
             IPCAllowedGroups = [ "wheel" ];

@@ -86,7 +86,4 @@ in {
         # binary wrapper config is elsewhere
         firejail.enable = true;
     };
-
-    # enable development documentation
-    documentation.dev.enable = true;
 }
