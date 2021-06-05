@@ -1,6 +1,8 @@
 { config, lib, pkgs, ... }:
 with lib;
 let
+    inherit (lib.arnix.systemd) hardeningProfiles;
+
     cfg = config.security.sgx;
 in
 {
@@ -79,7 +81,7 @@ in
                 LD_LIBRARY_PATH = "${cfg.packages.psw}/lib:${path}";
             };
             
-            serviceConfig = {
+            serviceConfig = hardeningProfiles.socketed // {
                 # for strace: ${pkgs.strace}/bin/strace -o /var/opt/aesmd/trace.log
                 ExecStart = "${path}/aesm_service --no-daemon";
                 ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
@@ -97,42 +99,16 @@ in
                 RuntimeDirectoryMode = "0755";
                 ReadWritePaths = [ "/var/opt/aesmd" ];
 
-                # sandboxing
-                CapabilityBoundingSet = "";
-                LockPersonality = true;
+                # requires a little less restrictive permissions
                 MemoryDenyWriteExecute = false;
-                NoNewPrivileges = true;
-                RemoveIPC = true;
-                ProcSubset = "pid";
-
                 PrivateDevices = false;
-                PrivateMounts = true;
                 PrivateNetwork = false;
-                PrivateTmp = true;
-                PrivateUsers = true;
 
-                ProtectClock = true;
-                ProtectControlGroups = true;
-                ProtectHome = true;
-                ProtectKernelLogs = true;
-                ProtectKernelModules = true;
-                ProtectKernelTunables = true;
-                ProtectHostname = true;
-                ProtectProc = "noaccess";
-                ProtectSystem = "strict";
-                RestrictAddressFamilies = [ "~AF_INET" "~AF_INET6" ];
-                RestrictNamespaces = true;
-                RestrictRealtime = true;
-                RestrictSUIDSGID = true;
+                # needs the ipc syscall in order to run
+                SystemCallFilter = subtractLists [ "~@ipc" ]
+                    hardeningProfiles.networked.SystemCallFilter;
 
-                SystemCallFilter = [
-                    "@system-service"
-                    "~@aio" "~@chown" "~@keyring" "~@memlock"
-                    "~@resources" "~@privileged" "~@setuid" "~@sync" "~@timer"
-                ];
-                SystemCallArchitectures = "native";
-                SystemCallErrorNumber = "EPERM";
-
+                # needs to access SGX devices
                 DevicePolicy = "closed";
                 DeviceAllow = [
                     "/dev/isgx rw"
