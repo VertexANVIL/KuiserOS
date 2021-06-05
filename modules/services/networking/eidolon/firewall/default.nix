@@ -29,20 +29,8 @@ let
         # ==================================
         ${mkChain "FORWARD" "eidolon-bfw"}
 
-        # always clamp TCP packet MSS to path MTU
+        # clamp TCP packet MSS to path MTU
         ip46tables -A eidolon-bfw -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-
-        # conntrack existing packets
-        ip46tables -A eidolon-bfw -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-
-        # allow ICMPv4 echo requests
-        iptables -A eidolon-bfw -p icmp --icmp-type echo-request -j ACCEPT
-
-        # allow all ICMPv6 requests except redirect & node info
-        ip6tables -A eidolon-bfw -p icmpv6 --icmpv6-type redirect -j DROP
-        ip6tables -A eidolon-bfw -p icmpv6 --icmpv6-type 139 -j DROP
-
-        ip6tables -A eidolon-bfw -p icmpv6 -j ACCEPT
 
         ${cfg.forward}
 

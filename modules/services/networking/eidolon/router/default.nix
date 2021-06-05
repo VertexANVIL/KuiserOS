@@ -136,36 +136,19 @@ in {
             };
         };
 
-        services.eidolon.firewall = {
-            # TODO: Below peer firewall rules should be deduplicated
-            # If we have more than one peer using v4/v6 hybrid we need to use this way
-            input = ''
-                # BGP peers
-                ${concatStrings (flatten 
-                    (forEach resolvePeers (peer:
-                        mapAttrsToList (n: _: ''
-                            iptables -A eidolon-fw -s ${n} -p tcp --dport 179 -j ACCEPT
-                        '') peer.neighbor.v4addrs ++
-                        mapAttrsToList (n: _: ''
-                            ip6tables -A eidolon-fw -s ${n} -p tcp --dport 179 -j ACCEPT
-                        '') peer.neighbor.v6addrs
-                )))}
-            '';
-
-            # make sure these are added right at the end
-            forward = mkOrder 4000 ''
-                # allow unrestricted traffic from our own networks
-                ${concatStringsSep "\n" (flatten [
-                    (map (addr: "iptables -A eidolon-bfw -s ${addrToString addr} -j ACCEPT") cfg.ipv4.networks)
-                    (map (addr: "ip6tables -A eidolon-bfw -s ${addrToString addr} -j ACCEPT") cfg.ipv6.networks)
-                ])}
-
-                # deny all traffic to our own networks (by default)
-                ${concatStringsSep "\n" (flatten [
-                    (map (addr: "iptables -A eidolon-bfw -d ${addrToString addr} -j DROP") cfg.ipv4.networks)
-                    (map (addr: "ip6tables -A eidolon-bfw -d ${addrToString addr} -j DROP") cfg.ipv6.networks)
-                ])}
-            '';
-        };
+        # TODO: Below peer firewall rules should be deduplicated
+        # If we have more than one peer using v4/v6 hybrid we need to use this way
+        services.eidolon.firewall.input = ''
+            # BGP peers
+            ${concatStrings (flatten 
+                (forEach resolvePeers (peer:
+                    mapAttrsToList (n: _: ''
+                        iptables -A eidolon-fw -s ${n} -p tcp --dport 179 -j ACCEPT
+                    '') peer.neighbor.v4addrs ++
+                    mapAttrsToList (n: _: ''
+                        ip6tables -A eidolon-fw -s ${n} -p tcp --dport 179 -j ACCEPT
+                    '') peer.neighbor.v6addrs
+            )))}
+        '';
     };
 }

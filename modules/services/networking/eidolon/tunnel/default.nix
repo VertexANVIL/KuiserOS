@@ -161,36 +161,14 @@ in {
             };
         }];
 
-        services.eidolon.firewall = {
-            input = ''
-                # allow only for actual tunnel interfaces
-                ${if (length cfg.peers) == 0 then "" else "ip46tables -A eidolon-fw -i ${eidolon.underlay} -p gre -j ACCEPT"}
-                ${concatStrings (forEach resolved (peer: ''
-                    ip46tables -A eidolon-fw -i ${peer.interface} -p ospfigp -j ACCEPT
-                ''))}
-            '';
+        services.eidolon.firewall.input = ''
+            # allow GRE on the tunnel interface
+            ${if (length cfg.peers) == 0 then "" else "ip46tables -A eidolon-fw -i ${eidolon.underlay} -p gre -j ACCEPT"}
 
-            forward = ''
-                # allow unrestricted traffic out to Eidolon peers
-                # AZ: this is so that traffic from hosts inside ACN can go out from one node and come back in from another without issues
-                # TODO: If we had multiple Eidolon nodes peered with an ACN network, this probably wouldn't work.
-                # TODO: In that case the traffic on the second node might pick its local return tunnel, and get blocked at conntrack. We could:
-                # (a) move the firewall back onto the ACN routers (allow any from our networks?)
-                # (b) setup a conntrack sync service between the peers
-                ${concatStringsSep "\n" (forEach (filter (x: hasPrefix "eid" x.interface) resolved) (peer: ''
-                    ip46tables -A eidolon-bfw -o ${peer.interface} -j ACCEPT
-                ''))}
-
-                # explicitly allow access to and from the ANI peers of this router
-                # this should be able to be removed after I (hopefully) renumber them, so we can allow the entire address block
-                ${concatStringsSep "\n" (remove null (forEach resolved (peer: 
-                    if peer.node != null then let
-                        addr = peer.node.config.services.eidolon.router.ipv6.addrs.primary;
-                    in ''
-                        ip6tables -A eidolon-bfw -d ${addr.address} -j ACCEPT
-                    '' else null
-                )))}
-            '';
-        };
+            # allow OSPF from tunnel peer interfaces
+            ${concatStrings (forEach resolved (peer: ''
+                ip46tables -A eidolon-fw -i ${peer.interface} -p ospfigp -j ACCEPT
+            ''))}
+        '';
     };
 }
