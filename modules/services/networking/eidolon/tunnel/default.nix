@@ -1,4 +1,4 @@
-{ config, lib, name, utils, ... }:
+{ config, lib, name, utils, regions ? {}, ... }:
 
 with lib;
 
@@ -6,7 +6,27 @@ let
     eidolon = config.services.eidolon;
     cfg = eidolon.tunnel;
 
-    resolved = utils.resolvedTunnelPeers;
+    resolved = (flip imap0 cfg.peers) (i: peer: peer // (
+    let
+        internal = (peer.endpoint != null) && (hasPrefix "@" peer.endpoint);
+
+        # need to use a different prefix for inter-network links
+        # as OSPF uses this to decide on enabled interfaces
+        interfacePrefix = if internal then "eid" else "eic";
+        interface = if (peer.interface != null) then peer.interface else "${interfacePrefix}${toString i}";
+
+        regionName = removePrefix "@" peer.endpoint;
+
+        node = if internal then
+            assert (assertMsg (hasAttr regionName regions) "referenced region ${regionName} was not found!");
+            regions.${regionName}.bdr1 # TODO: shouldn't rely on the default router being called "bdr1"
+        else null;
+    
+        endpoint = if (peer.endpoint != null && node != null) then node.config.services.eidolon.tunnel.address else peer.endpoint;
+    in
+    {
+        inherit interface endpoint node;
+    }));
 
     providerTypes = {
         gre = types.submodule ({ config, ... }: {

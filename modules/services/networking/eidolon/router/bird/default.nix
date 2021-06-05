@@ -3,6 +3,8 @@
 with lib;
 
 let
+    inherit (utils.router) resolvePeers;
+
     eidolon = config.services.eidolon;
     cfg = eidolon.router;
 
@@ -284,7 +286,7 @@ let
         ${builtins.readFile ./rib_exterior.conf}
 
         ### Peers ###
-        ${concatStrings (flatten (map buildPeer utils.resolvePeers))}
+        ${concatStrings (flatten (map buildPeer resolvePeers))}
 
         ### Piping ###
         ${builtins.readFile ./pipes.conf};

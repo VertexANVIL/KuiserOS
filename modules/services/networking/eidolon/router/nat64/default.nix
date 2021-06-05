@@ -3,7 +3,7 @@
 with lib;
 
 let
-    inherit (utils) addrOpts routeOpts;
+    inherit (utils) addrOpts;
 
     router = config.services.eidolon.router;
     cfg = router.nat64;

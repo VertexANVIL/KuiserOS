@@ -1,9 +1,11 @@
-{ config, lib, utils, ... }:
+{ config, lib, utils, regions, ... }:
 
 with lib;
 
 let
-    inherit (utils) addrOpts routeOpts resolvePeers addrsToOpts addrToString;
+    inherit (utils) addrOpts addrsToOpts addrToString;
+    inherit (utils.router) routeOpts resolvePeers;
+
     cfg = config.services.eidolon.router;
 
     versionOpts = v: {
@@ -118,6 +120,10 @@ in {
     };
 
     config = mkIf cfg.enable {
+        _module.args.utils.router = utils // (import ./utils.nix {
+            inherit config lib regions utils;
+        });
+
         networking = {
             interfaces.dummy0 = {
                 # set the dummy as primary since it will be routed
