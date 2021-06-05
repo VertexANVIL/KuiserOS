@@ -30,6 +30,6 @@
     };
 
     # programs & services
+    services.eidolon.enable = true;
     services.routinator.enable = true;
-    services.eidolon.firewall.enable = true;
 }

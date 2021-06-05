@@ -127,7 +127,7 @@ let
         }
     ));
 
-    mkConfOpt = path: default: mkIf cfg.enable (mkMerge (forEach preconf (x: attrByPath path default x)));
+    mkConfOpt = path: default: mkMerge (forEach preconf (x: attrByPath path default x));
     mkRouteEntry = peer: v: {
         address = peer.endpoint;
         prefixLength = if (v == 6) then 128 else 32;
@@ -137,8 +137,6 @@ let
 in {
     options = {
         services.eidolon.tunnel = {
-            enable = mkEnableOption "Eidolon RIS Tunnel";
-
             address = mkOption {
                 type = types.str;
                 default = (utils.underlayAddr eidolon.region name 6).address;
@@ -153,7 +151,7 @@ in {
         };
     };
 
-    config = mkIf cfg.enable {
+    config = mkIf eidolon.enable {
         networking = mkMerge [(mkConfOpt ["networking"] {}) {
             interfaces.${utils.underlay} = {
                 # create static routes in order to route tunnel traffic via the underlay interface

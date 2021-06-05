@@ -14,7 +14,7 @@ let
             ip46tables -N ${chain}
 
             # add new rules
-            ip46tables -A ${type} -j eidolon-fw
+            ip46tables -A ${type} -j ${chain}
         '';
     in ''
         # ==================================
@@ -53,8 +53,6 @@ let
 in {
     options = {
         services.eidolon.firewall = {
-            enable = mkEnableOption "Eidolon RIS Firewall";
-
             input = mkOption {
                 type = types.lines;
                 default = "";
@@ -69,7 +67,7 @@ in {
         };
     };
 
-    config = mkIf cfg.enable {
+    config = mkIf eidolon.enable {
         networking.firewall.extraCommands = rules;
     };
 }

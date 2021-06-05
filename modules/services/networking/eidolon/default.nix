@@ -10,6 +10,8 @@ in {
 
     options = {
         services.eidolon = {
+            enable = mkEnableOption "Eidolon RIS";
+
             underlay = mkOption {
                 type = with types; nullOr str;
                 default = null;

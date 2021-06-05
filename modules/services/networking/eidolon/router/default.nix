@@ -6,7 +6,8 @@ let
     inherit (utils) addrOpts addrsToOpts addrToString;
     inherit (utils.router) routeOpts resolvePeers;
 
-    cfg = config.services.eidolon.router;
+    eidolon = config.services.eidolon;
+    cfg = eidolon.router;
 
     versionOpts = v: {
         options = {
@@ -119,7 +120,7 @@ in {
         };
     };
 
-    config = mkIf cfg.enable {
+    config = mkIf (eidolon.enable && cfg.enable) {
         _module.args.utils.router = utils // (import ./utils.nix {
             inherit config lib regions utils;
         });
