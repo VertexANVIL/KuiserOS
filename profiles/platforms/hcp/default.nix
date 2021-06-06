@@ -14,4 +14,12 @@ in {
 
         resolvconf.dnsExtensionMechanism = false;
     };
+
+    # override the openstack-init script, because not every VM has user data and this causes the service to crash
+    systemd.services.openstack-init.script = let
+        script = import ./openstack-metadata-fetcher.nix {
+            targetRoot = "/";
+            wgetExtraOptions = "--retry-connrefused";
+        };
+    in lib.mkForce script;
 }
