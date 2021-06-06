@@ -81,12 +81,14 @@ let
         kv = types.submodule ({ config, ... }: {
             options = {
                 path = mkOption {
-                    type = types.str;
+                    default = null;
+                    type = types.nullOr types.str;
                     description = "Path to the key/value key in Vault.";
                 };
 
                 field = mkOption {
-                    type = types.str;
+                    default = null;
+                    type = types.nullOr types.str;
                     description = "Default key/value field to use.";
                 };
             };
@@ -168,6 +170,12 @@ let
                 description = "The name of the key.";
             };
 
+            folder = mkOption {
+                default = "/run/vault-keys";
+                type = types.str;
+                description = "The location to render the key to.";
+            };
+
             template = mkOption {
                 default = null;
                 type = types.nullOr types.lines;
@@ -222,6 +230,12 @@ let
                     description = "Dependent systemd units for the key.";
                 };
             };
+
+            external = mkOption {
+                default = false;
+                type = types.bool;
+                description = "Specifies that this key will be pushed externally by a tool rather than being pulled by the host's agent.";
+            };
         };
     });
 
@@ -230,24 +244,35 @@ let
     let
         defaults = {
             createDestDirs = false;
-            sandboxPath = "/run/vault-keys";
+            sandboxPath = key.folder;
         };
     in (forEach key.templates (template: ({
         sourceFile = pkgs.writeText "vault-key-${template.id}.ctmpl" template.text;
-        destFile = "/run/vault-keys/.${template.id}.tmp";
+        destFile = "${key.folder}/.${template.id}.tmp";
     } // defaults)));
 
     # builds the final set of keys
     finalKeys = (flip mapAttrs config.security.vault-keys (_: key: key // { templates = createConsulTemplates key; }));
 in
 {
-    options.security.vault-keys = mkOption {
-        default = {};
-        type = types.attrsOf keyType;
+    options = {
+        security.vault-keys = mkOption {
+            default = {};
+            type = types.attrsOf keyType;
+        };
+
+        # allows extration of template values by an external script
+        reflection.vault-keys = mkOption {
+            default = finalKeys;
+            type = types.attrs;
+        };
     };
 
     config = mkIf (length (attrNames config.security.vault-keys) > 0) {
-        services.vault-agent.templates = flatten (flip mapAttrsToList finalKeys (_: key: buildAgentTemplates key));
+        services.vault-agent.templates = let
+            # exclude keys marked as external as they do not use the agent
+            keys = filterAttrs (k: v: v.external == false) finalKeys;
+        in flatten (flip mapAttrsToList keys (_: key: buildAgentTemplates key));
 
         users.users = (listToAttrs (flatten (flip mapAttrsToList finalKeys (_: key:
            (flip mapAttrsToList (flip filterAttrs key.sinks (_: sink: sink.user != "root")) (_: sink: (nameValuePair sink.user { extraGroups = [ "keys" ]; })))
@@ -256,7 +281,7 @@ in
         systemd.services = # create a service for every key
         (listToAttrs (flip mapAttrsToList finalKeys (_: key: { name = "vault-key-${key.name}"; value = let
             # the default template
-            soletmpl = head key.templates;
+            default = head key.templates;
 
             keyRenderWait = pkgs.writeScriptBin "key-render-wait" (builtins.readFile ./key-render-wait.py);
 
@@ -287,21 +312,23 @@ in
 
             preStart = ''
                 # Wait for create/move if any keys don't exist here
-                ${keyRenderWait}/bin/key-render-wait -t ${tempFileNames} -s ${sinkFileNames}
+                ${keyRenderWait}/bin/key-render-wait -t "${tempFileNames}" -s "${sinkFileNames}" -d "${key.folder}"
             '';
 
             script = ''
                 set -euo pipefail
 
+                # if the key's folder does not exist, create it
+                if [[ ! -d "${key.folder}" ]]; then
+                    mkdir -p "${key.folder}"
+                    chmod -R 0600 "${key.folder}"
+                fi
+
                 # we are now DONE waiting for all the keys
                 # finally render them
-                ${concatStringsSep "\n" (flatten (
-                let
-                    prefix = "/run/vault-keys";
-                in
-                [(flip mapAttrsToList key.sinks (_: sink: let
+                ${concatStringsSep "\n" (flatten ([(flip mapAttrsToList key.sinks (_: sink: let
                     buildKey = render: dest: id: let
-                        tempFile = "${prefix}/.${id}.tmp";
+                        tempFile = "${key.folder}/.${id}.tmp";
                     in
 
                     # if the temp file doesn't exist, don't attempt to render and instead use the old version
@@ -315,27 +342,28 @@ in
                     '';
 
                     buildStandaloneKey = let
-                        dest = "${prefix}/${sink.name}";
-                    in buildKey ''cp "${prefix}/.${soletmpl.id}.tmp" "${dest}"'' dest soletmpl.id;
+                        dest = "${key.folder}/${sink.name}";
+                    in buildKey ''cp "${key.folder}/.${default.id}.tmp" "${dest}"'' dest default.id;
                 in
                     # we're always standalone if the parent key is overriding with a custom template
                     if key.template != null then buildStandaloneKey
 
                     # composite keys (suffixed with template suffix)
                     else if (length key.templates) > 1 then (forEach key.templates (template: let
-                        dest = "${prefix}/${sink.name}-${template.suffix}";
-                    in buildKey ''cp "${prefix}/.${template.id}.tmp" "${dest}"'' dest template.id))
+                        dest = "${key.folder}/${sink.name}-${template.suffix}";
+                    in buildKey ''cp "${key.folder}/.${template.id}.tmp" "${dest}"'' dest template.id))
 
                     # special for key/value keys (file per field)
                     else if (key.backends.kv != null) then let
-                        dest = "${prefix}/${sink.name}";
-                    in buildKey ''cat "${prefix}/.${soletmpl.id}.tmp" | ${pkgs.jq}/bin/jq -j -r '.["${sink.kv.field}"]' > "${dest}"'' dest soletmpl.id
+                        dest = "${key.folder}/${sink.name}";
+                    in buildKey ''cat "${key.folder}/.${default.id}.tmp" | ${pkgs.jq}/bin/jq -j -r '.["${sink.kv.field}"]' > "${dest}"'' dest default.id
                         
                     # fallback to regular
                     else buildStandaloneKey))
 
-                    # remove the temporary files
-                    (forEach key.templates (template: ''rm -f "${prefix}/.${template.id}.tmp"''))
+                    # remove the temporary files, but not for external keys as we might need to re-render them
+                    # TODO: could we actually just do this for all keys, i.e. not remove the tempfiles?
+                    (optional (key.external == false) (forEach key.templates (template: ''rm -f "${key.folder}/.${template.id}.tmp"'')))
                 ]))}
 
                 # perform actions on dependent units
@@ -346,7 +374,7 @@ in
                 ${key.postRenew.command}
 
                 # Wait for key modification and exit if so
-                ${keyRenderWait}/bin/key-render-wait -m -t ${tempFileNames}
+                ${keyRenderWait}/bin/key-render-wait -m -t "${tempFileNames}" -d "${key.folder}"
             '';
         }; }))) //
         
