@@ -37,6 +37,13 @@
             binutils coreutils dnsutils
             iputils moreutils utillinux
         ];
+
+        # set up general pager options
+        sessionVariables = {
+            PAGER = "less -R";
+            LESS = "-iFJMRW -x4";
+            LESSOPEN = "|${pkgs.lesspipe}/bin/lesspipe.sh %s";
+        };
     };
 
     programs = {
