@@ -1,3 +1,4 @@
+{ ... }:
 rec {
     hardeningProfiles.isolate = {
         CapabilityBoundingSet = "";

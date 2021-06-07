@@ -78,33 +78,38 @@ let
         inherit (flake-utils.lib) eachDefaultSystem;
 
         # HACKHACK: imports all our dependent libraries
-        extraLib = let
-            gen = v: recursiveMergeAttrsWith (a: b: a // b) (map (p: import p {
+        extraLib = system: let
+            gen = attrs: mapAttrs (k: v: import v {
                 inherit nixos;
                 inherit (self) lib;
-            }) v);
-        in (gen [
-            ./certs.nix
-        ]);
-    in (eachDefaultSystem (system:
-        let
-            overridePkgs = pkgImport baseInputs.unstable [ ] system overrides.unfree;
-            overlays = (map (p: p overridePkgs) overrides.packages)
-            ++ [(final: prev: {
-                    # add in our sources
-                    srcs = inputs.srcs.inputs;
+                pkgs = pkgs.${system};
+            }) attrs;
+        in (gen {
+            ansi = ./ansi.nix;
+            certs = ./certs.nix;
+            systemd = ./systemd.nix;
+        });
 
-                    # extend the "lib" namespace with arnix and flake-utils
-                    lib = (prev.lib or { }) // {
-                        inherit (nixos.lib) nixosSystem;
-                        arnix = (self.lib or inputs.arnix.lib) // extraLib;
-                        flake-utils = flake-utils.lib;
-                    };
-            })]
-            ++ extern.overlays
-            ++ (attrValues self.overlays);
-        in { pkgs = pkgImport nixos overlays system overrides.unfree; }
-    )).pkgs;
+        pkgs = (eachDefaultSystem (system:
+            let
+                overridePkgs = pkgImport baseInputs.unstable [ ] system overrides.unfree;
+                overlays = (map (p: p overridePkgs) overrides.packages)
+                ++ [(final: prev: {
+                        # add in our sources
+                        srcs = inputs.srcs.inputs;
+
+                        # extend the "lib" namespace with arnix and flake-utils
+                        lib = (prev.lib or { }) // {
+                            inherit (nixos.lib) nixosSystem;
+                            arnix = (self.lib or inputs.arnix.lib) // (extraLib system);
+                            flake-utils = flake-utils.lib;
+                        };
+                })]
+                ++ extern.overlays
+                ++ (attrValues self.overlays);
+            in { pkgs = pkgImport nixos overlays system overrides.unfree; }
+        )).pkgs;
+    in pkgs;
 
     # Generates the "packages" flake output
     # overlay + overlays = packages
@@ -237,8 +242,6 @@ in rec {
     # hosts are configured at the top level only
     inherit optionalPath optionalPathImport mapFilterAttrs genAttrs' pathsToImportedAttrs
         recImportFiles recImportDirs recursiveMerge recursiveMergeAttrsWithNames recursiveMergeAttrsWith;
-
-    systemd = import ./systemd.nix;
 
     # counts the number of attributes in a set
     attrCount = set: length (attrNames set);
