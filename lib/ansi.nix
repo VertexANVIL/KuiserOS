@@ -1,10 +1,10 @@
-{ nixos, lib, pkgs, ... }:
+{ lib, pkgs ? null, ... }:
 
 # Provides standard ANSI Control Codes for prettifying text
 
 let
     inherit (builtins) readFile;
-    inherit (nixos.lib) mapAttrsRecursive;
+    inherit (lib) mapAttrsRecursive;
 
     codes = {
         reset = 0;

@@ -63,7 +63,7 @@ let
 
                 (optionalString (data.neighbor ? multihop) "multihop ${toString data.neighbor.multihop};")
 
-                (utils.optionalList (data.peer.internal) [
+                (optionals data.peer.internal [
                     (optionalString cfg.reflector "rr client;")
                 ])
 

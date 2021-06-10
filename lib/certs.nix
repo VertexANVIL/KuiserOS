@@ -1,8 +1,8 @@
-{ nixos, lib, ... }:
+{ lib, ... }:
 let
     inherit (builtins) readFile readDir;
-    inherit (nixos.lib) hasSuffix removeSuffix nameValuePair;
-    inherit (lib) mapFilterAttrs;
+    inherit (lib) hasSuffix removeSuffix nameValuePair;
+    inherit (lib.arnix) mapFilterAttrs;
 
     certPath = ./../profiles/core/security/certs;
 in  mapFilterAttrs (_: v: v != null) (n: v:

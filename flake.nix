@@ -20,7 +20,10 @@
         };
     };
 
-    outputs = inputs@{ nixos, flake-utils, ... }: let
-        lib = import ./lib { inherit nixos flake-utils; baseInputs = inputs; };
+    outputs = inputs@{ self, nixos, ... }: let
+        lib = import ./lib {
+            inherit (nixos) lib;
+            baseInputs = inputs;
+        };
     in (lib.mkRootArnixRepo { inputs = inputs // { inherit lib; }; });
 }
