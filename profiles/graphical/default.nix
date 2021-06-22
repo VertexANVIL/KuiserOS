@@ -3,6 +3,15 @@
     sound.enable = true;
     console.useXkbConfig = true;
 
+    xdg.portal = {
+        enable = true;
+        extraPortals = with pkgs; [
+            xdg-desktop-portal-gtk
+        ];
+
+        gtkUsePortal = true;
+    };
+
     hardware = {
         opengl = {
             enable = true;
@@ -28,10 +37,14 @@
             libinput.enable = true;
         };
 
+        # Enable pipewire
+        pipewire.enable = true;
+
         # Use graphical usbguard package
         usbguard.package = pkgs.usbguard;
     };
 
+    # Also forces Chromium to rebuild which we don't want
     # security.chromiumSuidSandbox.enable = true;
 
     environment.systemPackages = with pkgs; [

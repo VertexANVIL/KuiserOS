@@ -1,17 +1,10 @@
 { pkgs, ... }:
 {
-    services.pipewire.enable = true;
     services.xserver.displayManager.gdm.wayland = true;
 
-    xdg.portal = {
-        enable = true;
-        extraPortals = with pkgs; [
-            xdg-desktop-portal-wlr
-            xdg-desktop-portal-gtk
-        ];
-
-        gtkUsePortal = true;
-    };
+    xdg.portal.extraPortals = with pkgs; [
+        xdg-desktop-portal-wlr
+    ];
 
     environment.sessionVariables = {
         MOZ_ENABLE_WAYLAND = "1";

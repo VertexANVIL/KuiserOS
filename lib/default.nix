@@ -20,6 +20,7 @@ in rec {
     importers = f ./importers.nix;
     generators = f ./generators.nix;
     misc = f ./misc.nix;
+    modules = f ./modules.nix;
 
     # custom stuff
     ansi = f ./ansi.nix;

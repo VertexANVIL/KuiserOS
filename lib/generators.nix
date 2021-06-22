@@ -4,8 +4,8 @@ let
     
     inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs'
         recursiveUpdate nixosSystem substring optional removePrefix;
-    inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWithNames
-        optionalPath optionalPathImport pathsToImportedAttrs;
+    inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
+        optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
     inherit (baseInputs) nixos flake-utils;
 in rec {
     # Generates packages for every possible system
@@ -28,7 +28,7 @@ in rec {
 
                         # extend the "lib" namespace
                         lib = (prev.lib or { }) // {
-                            inherit (nixos.lib) nixosSystem;
+                            inherit nixosSystem;
                             arnix = (self.lib or inputs.arnix.lib) // (derivedLib system);
                         };
                 })]
@@ -101,7 +101,7 @@ in rec {
             value = import path;
         });
 
-        overlay = optionalPathImport (root + "/pkgs") (final: prev: {});
+        overlay = optionalPathImport (root + "/pkgs/default.nix") (final: prev: {});
 
         # imports all the overlays inside the "overlays" directory
         overlayAttrs = let
@@ -163,10 +163,6 @@ in rec {
         in (mkEachSystem (system: pkgs: {
             devShell = pkgs.mkShell self._internal.shell.${system};
             packages = flattenTreeSystem system (genPackagesOutput root inputs pkgs);
-
-            # WTF is this shit supposed to do?
-            #legacyPackages.hmActivationPackages =
-            #    genHomeActivationPackages { inherit self; };
         })) // {
             _internal = mkEachSystem (system: pkgs: {
                 # this lets children add stuff to the shell
@@ -204,38 +200,127 @@ in rec {
             local = mkInternalArnixRepo (all // { inputs = baseInputs // inputs; });
 
             # merge together the attrs we need from our parent
-            merged1 = recursiveMergeAttrsWithNames
+            shallowMerged = recursiveMergeAttrsWithNames
                 ["nixosModules" "overlays" "packages"] (a: b: a // b) [ parent local ];
-            merged2 = recursiveMergeAttrsWithNames
+            deepMerged = recursiveMergeAttrsWithNames
                 ["lib" "_internal"] (a: b: recursiveMerge [ a b ]) [ parent local ];
-        in (merged1 // merged2) // {
+        in (shallowMerged // deepMerged) // {
             inherit (local) devShell;
         };
-    
-        pkgs = (genPkgs root inputs).${system};
 
         # function to create our host attrs
         mkHosts = { root, flat ? false, bases ? [], modifier ? (_: _) }: rec {
-            nixosConfigurations = import ./hosts.nix {
-                inherit pkgs root system bases flat;
-                inherit (pkgs) lib;
-                inherit (repo._internal) extern overrides;
+            nixosConfigurations = mkNixosSystems {
+                inherit root system bases flat;
                 inputs = baseInputs // inputs;
             };
 
-            prefixedNodes = modifier nixosConfigurations;
-            colmena = mkColmenaHiveNodes system prefixedNodes;
+            colmena = mkColmenaHiveNodes system _internal.prefixedNodes;
 
             # add checks for deploy-rs
             # checks = mapAttrs (system: deployLib:
             #     deployLib.deployChecks self.deploy
             # ) deploy.lib;
+
+            _internal.prefixedNodes = modifier nixosConfigurations;
         };
-    in repo // (
+    in recursiveUpdate repo (
         if (generator != null) then
             generator mkHosts
         else mkHosts {
             inherit root flat bases;
         }
     );
+
+    # Builds a NixOS system
+    mkNixosSystem = {
+        inputs, # The flake inputs
+        pkgs, # The compiled package set
+
+        repos, # Set of Arnix repositories
+        nodes, # Set of nodes to allow inter-node resolution
+
+        name, # The hostname of the host
+        bases, # The base configurations for the repo
+        config, # The base configuration for the host
+        system ? "x86_64-linux", # Target system to build for
+    }: let
+        inherit (inputs) self;
+        inherit (self._internal) extern overrides;
+    in nixosSystem {
+        inherit system;
+
+        # note: failing to add imports in here
+        # WILL result in an obscure "infinite recursion" error!!
+        specialArgs = extern.specialArgs // {
+            inherit lib repos name nodes;
+        };
+
+        modules = let
+            # merge down core profiles from all repos
+            core.require = (recursiveMergeAttrsWith (
+                a: b: recursiveMerge [ a b ]
+            ) (attrValues repos)).profiles.core.defaults;
+
+            global = with lib.arnix.modules; [
+                (globalDefaults { inherit inputs pkgs name; })
+                (hmDefaults {
+                    # TODO: inherit specialArgs, modules
+                    specialArgs = {};
+                    modules = [];
+                })
+            ];
+
+            modOverrides = { config, overrideModulesPath, ... }: let
+                inherit (overrides) modules disabledModules;
+            in {
+                disabledModules = modules ++ disabledModules;
+                imports = map (path: "${overrideModulesPath}/${path}") modules;
+            };
+
+            # Everything in `./modules/list.nix`.
+            flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
+        
+        # **** what is being imported here? ****
+        # core = profile in `profiles/core` which is always imported
+        # global = internal profile which sets up local defaults
+        # bases = list of "base" profiles that come from the flake top-level
+        # config = the actual host configuration
+        # modOverrides = module overrides
+        # extern.modules = modules from external flakes
+        in flakeModules ++ [ core ] ++ global ++ bases ++ [
+            config modOverrides
+        ] ++ extern.modules;
+    };
+
+    # Builds a set of NixOS systems from the hosts folder
+    mkNixosSystems = {
+        inputs,
+        root,
+
+        system ? "x86_64-linux", # Target system to build for
+        bases ? {},
+        flat ? false,
+    }: let
+        # Generate our package set
+        pkgs = (genPkgs root inputs).${system};
+
+        config = name: let
+            inherit (inputs) self;
+
+            # flat = hosts live in top-level rather than in "hosts" folder
+            hostFile = root + (if flat then "/${name}" else "/hosts/${name}");
+        in mkNixosSystem {
+            inherit inputs pkgs nodes name bases system;
+            inherit (self._internal) repos;
+
+            config.require = [ hostFile ];
+        };
+
+        # make attrs for each possible host
+        nodes = recImportDirs {
+            dir = if flat then root else root + "/hosts";
+            _import = config;
+        };
+    in nodes;
 }
