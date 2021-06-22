@@ -10,7 +10,7 @@ import tempfile
 import subprocess
 
 parser = argparse.ArgumentParser(description="Pushes Vault keys and approles for every host in the specified flake path")
-parser.add_argument("-f", "--flake", type=str, default=".", help="Specifies the flake path", required=True)
+parser.add_argument("-f", "--flake", type=str, default=".", help="Specifies the flake path")
 parser.add_argument("-a", "--approles", action="store_true", help="Pushes approles for every specified host")
 parser.add_argument("-k", "--keys", action="store_true", help="Pushes external keys for every specified host")
 args = parser.parse_args()
