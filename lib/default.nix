@@ -1,6 +1,6 @@
 { baseInputs, ... }:
 let
-    inherit (baseInputs.nixos) lib;
+    inherit (baseInputs.unstable) lib;
     inherit (lib) fix;
 in fix (self: { inputs ? {} }: let
     f = path: import path ({

@@ -3,10 +3,10 @@ let
     inherit (builtins) attrNames attrValues readDir mapAttrs pathExists;
     
     inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs'
-        recursiveUpdate nixosSystem substring optional removePrefix;
+        recursiveUpdate nixosSystem substring optional removePrefix nameValuePair makeOverridable;
     inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
-    inherit (baseInputs) nixos flake-utils;
+    inherit (baseInputs) nixos unstable flake-utils;
 in rec {
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
@@ -114,11 +114,11 @@ in rec {
             )
         ) { };
 
-        outputs = rec {
+        outputs = {
             # shared library functions
             lib = if (inputs ? lib) then inputs.lib
                 else optionalPath (root + "/lib") (p: import p {
-                    inherit (nixos) lib;
+                    inherit (unstable) lib;
                 }) { };
 
             # this represents the packages we provide
@@ -134,6 +134,20 @@ in rec {
                     (p: moduleAttrs (import p)) { };
             in recursiveUpdate cachix modules;
 
+            # generate nixos templates
+            nixosConfigurations = let
+                inherit (self._internal) repos;
+
+                system = "x86_64-linux";
+                pkgs = (genPkgs root inputs).${system};
+                attrs = optionalPath (root + "/templates") (p: import p { inherit lib repos; }) { };
+            in mapAttrs' (k: v: nameValuePair "@${k}" (mkNixosSystem {
+                inherit inputs pkgs system repos;
+
+                config = v;
+                name = "arnix-template";
+            })) attrs;
+
             # Internal outputs used only for passing to other Arnix repos
             _internal = rec {
                 inherit name;
@@ -146,7 +160,7 @@ in rec {
                 repos."${name}" = repos.self;
 
                 # import the external input files
-                extern = optionalPath (root + "/extern") (p: import p { inherit inputs; }) { };
+                extern = optionalPath (root + "/extern") (p: import p { inherit lib inputs; }) { };
                 overrides = optionalPathImport (root + "/overrides") {
                     unfree = []; modules = []; disabledModules = [];
                     packages = [];
@@ -238,16 +252,16 @@ in rec {
         pkgs, # The compiled package set
 
         repos, # Set of Arnix repositories
-        nodes, # Set of nodes to allow inter-node resolution
+        nodes ? {}, # Set of nodes to allow inter-node resolution
 
         name, # The hostname of the host
-        bases, # The base configurations for the repo
+        bases ? [], # The base configurations for the repo
         config, # The base configuration for the host
         system ? "x86_64-linux", # Target system to build for
     }: let
         inherit (inputs) self;
         inherit (self._internal) extern overrides;
-    in nixosSystem {
+    in makeOverridable nixosSystem {
         inherit system;
 
         # note: failing to add imports in here

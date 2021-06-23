@@ -5,6 +5,7 @@ This repository is intended to unify the common NixOS modules used for both Arct
 Warning: Probably useful as a reference only! This contains some assumptions and defaults that you probably don't want, unless you are an Arctarus employee that is.
 
 - `extern`: External imports. Same as with devos.
+- `hosts`: Contains hosts, may or may not be present.
 - `lib`: Shared library functions.
 - `modules`: NixOS and home-manager modules.
 - `overlays`: Package overlays.
@@ -13,3 +14,11 @@ Warning: Probably useful as a reference only! This contains some assumptions and
 - `profiles`: Shared NixOS machine configurations.
 - `templates`: Top-level templates from which NixOS machine images (ISOs etc) can be built.
 - `tools`: Supporting scripts and utilities that don't fit anywhere else.
+
+### Building Images
+
+[nixos-generators](https://github.com/nix-community/nixos-generators) is used to build Arnix ISOs. To generate an image, enter the shell with `nix develop`, and then use it like this:
+
+```
+nixos-generate -f iso --flake .#@default
+```

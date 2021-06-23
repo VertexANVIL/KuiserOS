@@ -7,7 +7,7 @@
     ];
 
     users = {
-        mutableUsers = false;
+        mutableUsers = lib.mkDefault false;
 
         # this group owns /persist/nixos configuration
         groups.sysconf.gid = 600;

@@ -6,6 +6,7 @@ let
 in {
     nativeBuildInputs = (with pkgs; [
         python3 consul-template
+        nixos-generators
     ]) ++ (with pkgs.python38Packages; [
         hvac paramiko Fabric
     ]) ++ [
