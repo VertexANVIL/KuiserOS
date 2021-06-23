@@ -6,6 +6,8 @@ final: prev: {
     # development
     libcamera = prev.callPackage ./development/libraries/libcamera { };
     openenclave-sgx = prev.callPackage (import ./development/libraries/openenclave { type = "sgx"; }) { };
+    qvtf = prev.callPackage ./development/libraries/qvtf { };
+    vtflib = prev.callPackage ./development/libraries/vtflib { };
     #nodePackagesCustom = import ./development/node-packages { pkgs = final; };
 
     # misc
