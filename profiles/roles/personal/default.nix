@@ -86,4 +86,13 @@ in {
         # binary wrapper config is elsewhere
         firejail.enable = true;
     };
+
+    hardware.pulseaudio = {
+        zeroconf = {
+            publish.enable = true;
+            discovery.enable = true;
+        };
+
+        tcp.enable = true;
+    };
 }
