@@ -12,8 +12,14 @@
 
         # community flakes
         nur.url = "github:nix-community/NUR";
+        nixlib.url = "github:nix-community/nixpkgs.lib";
         impermanence.url = "github:nix-community/impermanence";
-        nixos-generators.url = "github:nix-community/nixos-generators";
+
+        nixos-generators = {
+            url = "github:nix-community/nixos-generators";
+            inputs.nixlib.follows = "nixlib";
+            inputs.nixpkgs.follows = "nixpkgs";
+        };
 
         # third party
         flake-utils.url = "github:numtide/flake-utils/flatten-tree-system";

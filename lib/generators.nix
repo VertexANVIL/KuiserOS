@@ -3,7 +3,7 @@ let
     inherit (builtins) attrNames attrValues readDir mapAttrs pathExists;
     
     inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs'
-        recursiveUpdate nixosSystem substring optional removePrefix nameValuePair makeOverridable;
+        recursiveUpdate substring optional removePrefix nameValuePair makeOverridable;
     inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
     inherit (baseInputs) nixos unstable flake-utils;
@@ -16,21 +16,20 @@ in rec {
         inherit (flake-utils.lib) eachDefaultSystem;
 
         # create a version of lib with our generated packages and inject it
-        derivedLib = system: lib.override { pkgs = pkgs.${system}; };
+        derivedLib = system: lib.arnix.override { pkgs = pkgs.${system}; };
 
         pkgs = (eachDefaultSystem (system:
             let
                 overridePkgs = pkgImport baseInputs.unstable [ ] system overrides.unfree;
                 overlays = (map (p: p overridePkgs) overrides.packages)
                 ++ [(final: prev: {
-                        # add in our sources
-                        srcs = inputs.srcs.inputs;
+                    # add in our sources
+                    srcs = inputs.srcs.inputs;
 
-                        # extend the "lib" namespace
-                        lib = (prev.lib or { }) // {
-                            inherit nixosSystem;
-                            arnix = (self.lib or inputs.arnix.lib) // (derivedLib system);
-                        };
+                    # extend the "lib" namespace
+                    lib = (prev.lib or { }) // {
+                        arnix = derivedLib system;
+                    };
                 })]
                 ++ extern.overlays
                 ++ (attrValues self.overlays);
@@ -116,10 +115,7 @@ in rec {
 
         outputs = {
             # shared library functions
-            lib = if (inputs ? lib) then inputs.lib
-                else optionalPath (root + "/lib") (p: import p {
-                    inherit (unstable) lib;
-                }) { };
+            lib = lib.arnix;
 
             # this represents the packages we provide
             overlays = overlayAttrs // (genAttrs (attrNames (overlay null null)) (name: (
@@ -260,6 +256,7 @@ in rec {
         system ? "x86_64-linux", # Target system to build for
     }: let
         inherit (inputs) self;
+        inherit (unstable.lib) nixosSystem;
         inherit (self._internal) extern overrides;
     in makeOverridable nixosSystem {
         inherit system;
@@ -267,7 +264,10 @@ in rec {
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit lib repos name nodes;
+            inherit repos name nodes;
+
+            # create a version of the arnix lib with a package input
+            lib = lib // { arnix = lib.arnix.override { inherit pkgs; }; };
         };
 
         modules = let
