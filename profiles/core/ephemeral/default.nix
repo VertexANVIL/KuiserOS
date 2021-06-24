@@ -6,34 +6,6 @@
         zfs rollback -r rpool/local/root@blank
     ''; # touch /etc/NIXOS
 
-    # link the nixos config in the persistent volume to the temporary volume
-    system.activationScripts.linkPersist = {
-        text = ''
-            mkPersistDir()
-            {
-                mkdir -p "$1"
-                rm -rf "$2"
-                ln -sT "$1" "$2"
-            }
-
-            setDirAcls()
-            {
-                chown -R root:sysconf "$1" > /dev/null 2>&1 || true
-                find "$1" -type d -exec chmod a+s {} + > /dev/null 2>&1 || true
-                setfacl -R -d --set=u::rwX,g::rwX,o::0 "$1" > /dev/null 2>&1 || true
-                setfacl -R --set=u::rwX,g::rwX,o::0 "$1" > /dev/null 2>&1 || true
-            }
-
-            mkPersistDir /persist/nixos /etc/nixos
-
-            # correct the permissions
-            setDirAcls /persist/nixos
-            setDirAcls /persist/secrets
-        '';
-
-        deps = [];
-    };
-
     environment.persistence."/persist" = {
         directories = [
             "/var/log"

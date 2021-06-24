@@ -1,17 +1,5 @@
 { lib, pkgs, ... }:
-
-let
-    inixCli = pkgs.writeShellScriptBin "inix" ''
-        IFS=';' read -ra ARGS <<< $(${pkgs.inix-helper}/bin/inix-helper)
-        nix "$@" "''\${ARGS[@]}" 
-    '';
-
-    # Little helper to run nixos-rebuild while overriding the arnix path
-    nrbScript = pkgs.writeShellScriptBin "nrb" ''
-        IFS=';' read -ra ARGS <<< $(cd /etc/nixos && ${pkgs.inix-helper}/bin/inix-helper)
-        sudo nixos-rebuild "$@" "''\${ARGS[@]}" 
-    '';
-in {
+{
     nix = {
         package = pkgs.nixFlakes;
         systemFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
@@ -35,6 +23,4 @@ in {
             min-free = 536870912
         '';
     };
-
-    environment.systemPackages = [ inixCli nrbScript ];
 }
