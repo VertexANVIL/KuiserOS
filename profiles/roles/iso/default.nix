@@ -1,7 +1,18 @@
-{ lib, ... }:
+{ lib, modulesPath, ... }:
 {
+    imports = [ "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix" ];
+
+    # prefix our name
+    isoImage.isoBaseName = "arnix";
+
     # disable mutable users, as we can't use them with an iso
     users.mutableUsers = true;
+
+    security = {
+        # revert default back to sudo
+        sudo.enable = true;
+        doas.enable = false;
+    };
 
     # Set up a link-local boostrap network
     # See also: https://github.com/NixOS/nixpkgs/issues/75515#issuecomment-571661659

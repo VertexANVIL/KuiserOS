@@ -141,7 +141,7 @@ in rec {
                 inherit inputs pkgs system repos;
 
                 config = v;
-                name = "arnix-template";
+                name = "nixos";
             })) attrs;
 
             # Internal outputs used only for passing to other Arnix repos
