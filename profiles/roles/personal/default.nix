@@ -1,12 +1,14 @@
-{ config, lib, pkgs, repos, ... }: let
-    inherit (lib.arnix) mkProf;
-in {
-    imports = (with repos.root; mkProf [
-        # enable smart card support for personal computers
-        profiles.core.security.smartcard
-    ]) ++ [
+{ config, lib, pkgs, ... }: let
+    inherit (lib.arnix) mkProfile;
+in mkProfile {
+    imports = [
         ./nfs-fixes.nix
         ./nix-helpers.nix
+    ];
+
+    requires.profiles = [
+        # enable smart card support for personal computers
+        "core/security/smartcard"
     ];
 
     services = {

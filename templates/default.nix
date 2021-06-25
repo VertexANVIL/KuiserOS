@@ -1,9 +1,8 @@
-{ lib, repos, ... }: let
-    inherit (lib.arnix) mkProf;
-    inherit (repos.self) profiles;
+{ lib, ... }: let
+    inherit (lib.arnix) mkProfile;
 
-    mkTemplate = p: {
-        imports = mkProf [ profiles.roles.iso ] ++ p;
+    mkTemplate = p: mkProfile {
+        requires.profiles = [ "roles/iso" ] ++ p;
     };
 in {
     default = mkTemplate [ ];

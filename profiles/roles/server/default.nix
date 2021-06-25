@@ -1,11 +1,13 @@
-{ lib, pkgs, repos, ... }: let
-    inherit (lib.arnix) mkProf;
-in {
-    imports = (with repos.root; mkProf [
-        # enable SSH by default for servers
-        profiles.core.security.sshd
-    ]) ++ [
+{ lib, ... }: let
+    inherit (lib.arnix) mkProfile;
+in mkProfile {
+    imports = [
         ./hardening.nix
+    ];
+
+    requires.profiles = [
+        # enable SSH by default for servers
+        "core/security/sshd"
     ];
 
     security = {

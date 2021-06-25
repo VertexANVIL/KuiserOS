@@ -1,12 +1,17 @@
 { lib, pkgs, hardware, ... }:
-{
+let
+    inherit (lib.arnix) mkProfile;
+in mkProfile {
     imports = [
         hardware.common-pc-laptop
         hardware.common-pc-laptop-ssd
         hardware.common-cpu-intel-kaby-lake
-        ../../capabilities/fingerprint
-        ../../capabilities/graphics/nvidia
-        #../../capabilities/graphics/nvidia/prime
+    ];
+
+    requires.profiles = [
+        "hardware/capabilities/fingerprint"
+        "hardware/capabilities/graphics/nvidia"
+        #"hardware/capabilities/graphics/nvidia/prime"
     ];
 
     # thunderbolt support

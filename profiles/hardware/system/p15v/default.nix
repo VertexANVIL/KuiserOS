@@ -1,10 +1,15 @@
 { pkgs, hardware, ... }:
-{
+let
+    inherit (lib.arnix) mkProfile;
+in mkProfile {
     imports = [
         hardware.common-pc-laptop
         hardware.common-pc-laptop-ssd
         hardware.common-cpu-intel-kaby-lake
-        ../../capabilities/fingerprint
+    ];
+
+    requires.profiles = [
+        "hardware/capabilities/fingerprint"
     ];
 
     # thunderbolt support

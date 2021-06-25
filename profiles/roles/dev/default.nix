@@ -1,6 +1,5 @@
-{ config, lib, pkgs, repos, ... }: let
-    inherit (lib.arnix) mkProf;
-in {
+{ ... }:
+{
     # enable development documentation
     documentation.dev.enable = true;
 

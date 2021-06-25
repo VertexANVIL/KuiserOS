@@ -2,8 +2,8 @@
 let
     inherit (builtins) attrNames attrValues readDir mapAttrs pathExists;
     
-    inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs'
-        recursiveUpdate substring optional removePrefix nameValuePair makeOverridable;
+    inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' splitString
+        recursiveUpdate substring optional removePrefix nameValuePair makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
     inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
     inherit (baseInputs) nixos unstable flake-utils;
@@ -50,6 +50,47 @@ in rec {
         "${key}" = pkgs.${key};
     }) { } packagesNames;
 
+    # Creates a special library version specific to NixOS configurations
+    nixosLib = { inputs, pkgs, ... }: let
+        inherit (inputs) self;
+        inherit (self._internal) users profiles;
+
+        attrs = {
+            # Constructs everything we need for a profile
+            mkProfile = attrs: let
+                pathToTarget = src: path: let
+                    p = splitString "/" path;
+                    result = attrByPath p null src;
+                in
+                    assert (assertMsg (result != null) "The profile \"${path}\" does not exist.");
+                result;
+
+                pathsToTarget = src: paths: map (p: pathToTarget src p) paths;
+                profileDefaults = profiles: flatten ((map (p: p.defaults)) profiles);
+
+                requires = {
+                    users = pathsToTarget users (flatten (attrs.requires.users or []));
+                    profiles = pathsToTarget profiles (flatten (attrs.requires.profiles or []));
+                };
+            in (filterAttrs (n: v: n != "requires") attrs) // {
+                imports = (attrs.imports or [])
+                    ++ (profileDefaults requires.users)
+                    ++ (profileDefaults requires.profiles);
+
+                # set up our configuration for introspection use
+                arnix = {
+                    users = map (p: p._name) requires.users;
+                    profiles = map (p: p._name) requires.profiles;
+                };
+            };
+        };
+
+        overridden = lib.arnix.override { inherit pkgs; };
+        final = overridden.extend attrs;
+    in lib // {
+        arnix = final;
+    };
+
     /**
     Synopsis: mkProfileAttrs _path_
 
@@ -59,22 +100,25 @@ in rec {
     let profiles = mkProfileAttrs ./profiles; in
     assert profiles ? core.default; 0
     **/
-    mkProfileAttrs = dir: let
+    mkProfileAttrs = { dir, root ? dir }: let
         imports = let
             files = readDir dir;
-            p = n: v: v == "directory" && n != "profiles";
+            p = n: v: v == "directory";
         in filterAttrs p files;
 
-        f = n: _: optionalAttrs (pathExists "${dir}/${n}/default.nix") {
-            defaults = [ "${dir}/${n}" ];
-        } // mkProfileAttrs "${dir}/${n}";
+        f = n: _: let
+            path = "${dir}/${n}";
+        in optionalAttrs (pathExists "${path}/default.nix") {
+            _name = removePrefix "${toString root}/" (toString path);
+            defaults = [ path ];
+        } // mkProfileAttrs {
+            dir = path;
+            inherit root;
+        };
     in mapAttrs f imports;
 
     # Constructs a semantic version string from a derivation
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";
-
-    # Reduces profile defaults into their parent attributes
-    mkProf = profiles: flatten ((map (profile: profile.defaults)) profiles);
 
     # Retrieves the store path of one of our base inputs
     mkInputStorePath = input: baseInputs.${input}.outPath;
@@ -132,13 +176,16 @@ in rec {
 
             # generate nixos templates
             nixosConfigurations = let
-                inherit (self._internal) repos;
+                inherit (self._internal) users profiles;
 
                 system = "x86_64-linux";
                 pkgs = (genPkgs root inputs).${system};
-                attrs = optionalPath (root + "/templates") (p: import p { inherit lib repos; }) { };
+
+                attrs = optionalPath (root + "/templates") (p: import p {
+                    lib = nixosLib { inherit inputs pkgs; };
+                }) { };
             in mapAttrs' (k: v: nameValuePair "@${k}" (mkNixosSystem {
-                inherit inputs pkgs system repos;
+                inherit inputs pkgs system;
 
                 config = v;
                 name = "nixos";
@@ -148,12 +195,8 @@ in rec {
             _internal = rec {
                 inherit name;
 
-                repos.self = {
-                    users = optionalPath (root + "/users") (p: mkProfileAttrs (toString p)) { };
-                    profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs (toString p))) { };
-                };
-
-                repos."${name}" = repos.self;
+                users = optionalPath (root + "/users") (p: mkProfileAttrs { dir = toString p; }) { };
+                profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs { dir = toString p; })) { };
 
                 # import the external input files
                 extern = optionalPath (root + "/extern") (p: import p { inherit lib inputs; }) { };
@@ -246,8 +289,6 @@ in rec {
     mkNixosSystem = {
         inputs, # The flake inputs
         pkgs, # The compiled package set
-
-        repos, # Set of Arnix repositories
         nodes ? {}, # Set of nodes to allow inter-node resolution
 
         name, # The hostname of the host
@@ -257,24 +298,20 @@ in rec {
     }: let
         inherit (inputs) self;
         inherit (unstable.lib) nixosSystem;
-        inherit (self._internal) extern overrides;
+        inherit (self._internal) users profiles extern overrides;
     in makeOverridable nixosSystem {
         inherit system;
 
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit repos name nodes;
-
-            # create a version of the arnix lib with a package input
-            lib = lib // { arnix = lib.arnix.override { inherit pkgs; }; };
+            inherit name nodes;
+            lib = nixosLib { inherit inputs pkgs; };
         };
 
         modules = let
             # merge down core profiles from all repos
-            core.require = (recursiveMergeAttrsWith (
-                a: b: recursiveMerge [ a b ]
-            ) (attrValues repos)).profiles.core.defaults;
+            core.require = profiles.core.defaults;
 
             global = with lib.arnix.modules; [
                 (globalDefaults { inherit inputs pkgs name; })
@@ -284,6 +321,22 @@ in rec {
                     modules = [];
                 })
             ];
+
+            internal = { lib, ... }: with lib; {
+                options.arnix = {
+                    users = mkOption {
+                        default = [];
+                        type = types.listOf types.str;
+                        description = "List of enabled user profiles, for use in conditionals.";
+                    };
+
+                    profiles = mkOption {
+                        default = [];
+                        type = types.listOf types.str;
+                        description = "List of enabled system profiles, for use in conditionals.";
+                    };
+                };
+            };
 
             modOverrides = { config, overrideModulesPath, ... }: let
                 inherit (overrides) modules disabledModules;
@@ -300,10 +353,11 @@ in rec {
         # global = internal profile which sets up local defaults
         # bases = list of "base" profiles that come from the flake top-level
         # config = the actual host configuration
+        # internal = configuration options for introspection
         # modOverrides = module overrides
         # extern.modules = modules from external flakes
         in flakeModules ++ [ core ] ++ global ++ bases ++ [
-            config modOverrides
+            config internal modOverrides
         ] ++ extern.modules;
     };
 
@@ -326,7 +380,6 @@ in rec {
             hostFile = root + (if flat then "/${name}" else "/hosts/${name}");
         in mkNixosSystem {
             inherit inputs pkgs nodes name bases system;
-            inherit (self._internal) repos;
 
             config.require = [ hostFile ];
         };

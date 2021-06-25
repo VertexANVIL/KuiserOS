@@ -25,9 +25,13 @@ in rec {
     systemd = f ./systemd.nix;
 
     # extends with a custom lib
-    extend = path: self (all // {
-        extender = import path { inherit lib; };
+    extend = attrs: self (all // {
+        extender = extender // attrs;
     });
+
+    extendByPath = path: extend (
+        import path { inherit lib; }
+    );
 
     # overrides with custom imports
     override = inputs: self (all // {
@@ -38,7 +42,7 @@ in rec {
         imapAttrsToList recursiveMerge recursiveMergeAttrsWithNames recursiveMergeAttrsWith;
     inherit (lists) filterListNonEmpty;
     inherit (importers) pkgImport pathsToImportedAttrs recImportFiles recImportDirs nixFilesIn;
-    inherit (generators) genPkgs genPackagesOutput mkProfileAttrs mkVersion mkProf mkInputStorePath
+    inherit (generators) genPkgs genPackagesOutput mkProfileAttrs mkVersion mkInputStorePath
         mkColmenaHiveNodes mkRootArnixRepo mkArnixRepo;
     inherit (misc) optionalPath optionalPathImport isIPv6;
 } // extender) {}
