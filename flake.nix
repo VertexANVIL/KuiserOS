@@ -22,6 +22,11 @@
         };
 
         # third party
+        flake-compat = {
+            flake = false;
+            url = "github:edolstra/flake-compat";
+        };
+
         flake-utils.url = "github:numtide/flake-utils/flatten-tree-system";
         colmena.url = "github:ArctarusLimited/colmena/feat/flake-support";
 

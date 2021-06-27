@@ -219,7 +219,7 @@ in rec {
         })) // {
             _internal = mkEachSystem (system: pkgs: {
                 # this lets children add stuff to the shell
-                shell = optionalPath (root + "/shell.nix") (p: import p { inherit pkgs; }) {};
+                shell = optionalPath (root + "/shell") (p: import p { inherit pkgs; }) {};
             });
         };
     in recursiveUpdate outputs systemOutputs;
