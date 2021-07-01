@@ -177,7 +177,7 @@ let
         define OWN_AS = ${toString cfg.asn};
         define OWN_NET_SET = ${buildNetworkSet cfg.ipv4.networks 4};
         define OWN_NET_SET_V6 = ${buildNetworkSet cfg.ipv6.networks 6};
-        define RPKI_SERVER = ::1;
+        define RPKI_SERVER = 127.0.0.1;
 
         ${builtins.readFile ./martians.conf}
 
