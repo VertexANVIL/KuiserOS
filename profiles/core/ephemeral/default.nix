@@ -10,7 +10,13 @@
         directories = [
             "/var/log"
             "/var/lib/bluetooth"
+            "/var/lib/containerd"
+            "/var/lib/cfssl"
+            "/var/lib/etcd"
+            "/var/lib/kubelet"
+            "/var/lib/kubernetes"
             "/var/lib/systemd/coredump"
+            "/var/lib/tpm"
             "/etc/NetworkManager/system-connections"
         ];
 
