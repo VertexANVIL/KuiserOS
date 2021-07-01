@@ -31,5 +31,5 @@
 
     # programs & services
     services.eidolon.enable = true;
-    services.routinator.enable = true;
+    services.fort-validator.enable = true;
 }

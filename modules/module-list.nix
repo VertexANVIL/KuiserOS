@@ -4,6 +4,7 @@
     ./security/vault
     ./services/misc/drone
     ./services/networking/eidolon
+    ./services/networking/fort-validator
     ./services/networking/routinator
     ./services/networking/tayga
     ./services/security/vault

@@ -18,6 +18,9 @@ final: prev: {
     linuxPackages = import ./os-specific/linux { inherit final prev; };
 
     # tools
+    calico = prev.callPackage ./tools/networking/calico { };
+    calicoctl = prev.callPackage ./tools/networking/calico/calicoctl.nix { };
+    fort-validator = prev.callPackage ./tools/networking/fort/validator { };
     inix-helper = import ./tools/package-management/inix-helper { inherit final prev; };
 
     # python

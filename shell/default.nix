@@ -4,8 +4,7 @@ let
     # tools to push Vault approles
     pushHostApproles = pkgs.writeScriptBin "push-host-vault-keys" (builtins.readFile ./../tools/push-host-vault-keys.py);
 in {
-    nativeBuildInputs = (with pkgs;
-     [
+    nativeBuildInputs = (with pkgs; [
         python3 consul-template
         nixos-generators
     ]) ++ (with pkgs.python38Packages; [
