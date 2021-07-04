@@ -7,7 +7,6 @@ in {
         inherit (inputs) self home nixos unstable;
     in {
         nix.nixPath = [
-            # "nixos=${nixos}" TODO: actually need this?
             "nixpkgs=${nixos}"
             "unstable=${unstable}"
         ];

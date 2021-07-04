@@ -36,9 +36,9 @@
         };
     };
 
-    outputs = inputs@{ self, unstable, ... }: let
+    outputs = inputs@{ self, nixos, ... }: let
         lib = import ./lib {
-            inherit (unstable) lib;
+            inherit (nixos) lib;
             baseInputs = inputs;
         };
     in (lib.mkRootArnixRepo { inputs = inputs // { inherit lib; }; });

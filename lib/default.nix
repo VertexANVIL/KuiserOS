@@ -1,10 +1,10 @@
 { baseInputs, ... }:
 let
-    unstable = baseInputs.unstable.lib;
-    inherit (unstable) fix;
+    nixos = baseInputs.nixos.lib;
+    inherit (nixos) fix;
 in fix (self: { inputs ? {}, extender ? {} }@all: let
     # construct internal lib
-    lib = unstable // {
+    lib = nixos // {
         arnix = self all;
     };
 
@@ -18,8 +18,13 @@ in rec {
     generators = f ./generators.nix;
     misc = f ./misc.nix;
     modules = f ./modules.nix;
+    strings = f ./strings.nix;
 
     # custom stuff
+    objects = {
+        addrs = f ./objects/addrs.nix;
+    };
+
     ansi = f ./ansi.nix;
     certs = f ./certs.nix;
     systemd = f ./systemd.nix;
@@ -45,4 +50,6 @@ in rec {
     inherit (generators) genPkgs genPackagesOutput mkProfileAttrs mkVersion mkInputStorePath
         mkColmenaHiveNodes mkRootArnixRepo mkArnixRepo;
     inherit (misc) optionalPath optionalPathImport isIPv6;
+
+    inherit (objects.addrs) addrOpts addrToString addrToOpts addrsToOpts;
 } // extender) {}

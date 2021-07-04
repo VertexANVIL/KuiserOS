@@ -6,7 +6,7 @@ let
         recursiveUpdate substring optional removePrefix nameValuePair makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
     inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
-    inherit (baseInputs) nixos unstable flake-utils;
+    inherit (baseInputs) nixos flake-utils;
 in rec {
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
@@ -297,7 +297,7 @@ in rec {
         system ? "x86_64-linux", # Target system to build for
     }: let
         inherit (inputs) self;
-        inherit (unstable.lib) nixosSystem;
+        inherit (nixos.lib) nixosSystem;
         inherit (self._internal) users profiles extern overrides;
     in makeOverridable nixosSystem {
         inherit system;
