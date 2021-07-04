@@ -1,5 +1,8 @@
 {
-    modules = [];
+    modules = [
+        # need the `settings` attribute to override configuration
+        "virtualisation/containerd.nix"
+    ];
     disabledModules = [];
 
     # allowed unfree packages
