@@ -31,5 +31,8 @@
 
     # programs & services
     services.eidolon.enable = true;
-    services.fort-validator.enable = true;
+    services.networking.fort-validator = {
+        enable = true;
+        acceptArinRpa = true;
+    };
 }

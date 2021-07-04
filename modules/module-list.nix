@@ -6,8 +6,6 @@
     ./services/misc/drone
     ./services/networking/calico
     ./services/networking/eidolon
-    ./services/networking/fort-validator
-    ./services/networking/routinator
     ./services/networking/tayga
     ./services/security/vault
     ./services/web-apps/mediawiki

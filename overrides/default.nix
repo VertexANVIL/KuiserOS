@@ -1,6 +1,7 @@
 {
     modules = [
-        # need the `settings` attribute to override configuration
+        "services/networking/firewall.nix"
+        "services/networking/fort-validator.nix"
         "virtualisation/containerd.nix"
     ];
     disabledModules = [];
@@ -15,7 +16,7 @@
         # needed for our patch
         #inherit nixFlakes nixUnstable; # WHAT ???
 
-        inherit dotnet-sdk_5 omnisharp-roslyn;
-        inherit vscode-extensions;
+        # packages pulled from upstream
+        inherit juju enigma libcamera openenclave-sgx fort-validator;
     })];
 }
