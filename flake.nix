@@ -5,7 +5,7 @@
         # conventional nixos channels
         nixos.url = "nixpkgs/release-21.05";
         nixpkgs.url = "nixpkgs/release-21.05";
-        unstable.url = "nixpkgs";
+        unstable.url = "github:ArctarusLimited/nixpkgs";
 
         # official flakes
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
