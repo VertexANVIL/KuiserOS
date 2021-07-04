@@ -8,11 +8,11 @@
         "utils": "utils"
       },
       "locked": {
-        "lastModified": 1619939702,
-        "narHash": "sha256-ETNQSN5MI14KWx1WzJwB5VD9MADnCuJJhTMYgoRlAf0=",
+        "lastModified": 1625406778,
+        "narHash": "sha256-7HAfKmp8UjSAznJNhgOubL+nhJdxl2p5i1i601gWJac=",
         "owner": "ArctarusLimited",
         "repo": "colmena",
-        "rev": "af5d834e2138a7ebbc4be054b4fcac07abcfa0f0",
+        "rev": "a96ac4f454682b9b250e68ef463ef9a0a5da575e",
         "type": "github"
       },
       "original": {

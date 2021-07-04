@@ -1,12 +1,13 @@
-{ config, lib, pkgs, ... }:
-{
-    imports = [
-        ./boot
-        ./nix
-        ./security
+{ config, lib, pkgs, ... }: let
+    inherit (lib.arnix) mkProfile;
+in mkProfile {
+    requires.profiles = [
+        "core/boot"
+        "core/nix"
+        "core/security"
 
         # global hardware profiles
-        ../hardware/common
+        "hardware/common"
     ];
 
     networking.useDHCP = false;

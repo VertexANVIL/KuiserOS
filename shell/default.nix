@@ -8,7 +8,10 @@ in {
         python3 consul-template
         nixos-generators
     ]) ++ (with pkgs.python38Packages; [
-        hvac paramiko Fabric tpm2-pytss
+        hvac paramiko Fabric
+        
+        # not supported on x86_64-darwin, breaks `nix flake check`
+        # tpm2-pytss
     ]) ++ [
         pushHostApproles
     ];

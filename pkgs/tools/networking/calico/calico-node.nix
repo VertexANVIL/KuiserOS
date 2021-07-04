@@ -6,20 +6,15 @@ buildGoModule rec {
 
     src = fetchFromGitHub {
         owner = "projectcalico";
-        repo = "cni-plugin";
+        repo = "node";
         rev = "v${version}";
-        sha256 = "sha256-k314oe0P49Ki+cI/ejKLflnntyUX0rYMZM6pEaPrMwI=";
+        sha256 = "sha256-rONMs0MFHFYig7V5LqozbKc94s8BHzDsJ6qm4r8GKcY=";
     };
 
-    vendorSha256 = "sha256-DT/P1bcxp6mwdgtooGcnG/4JIBIxeRudwy+tzYTZxsE=";
+    vendorSha256 = "sha256-NWubRLJjSZWHAa1rhwluQDwgU1JLjDUvVU8f3wT+nR0=";
 
     preBuild = ''
         buildFlagsArray+=("-ldflags" "-s -w -X main.VERSION=v${version}")
-    '';
-
-    # calico changes it's behaviour based on it's name, coreutils single binary style.
-    postInstall = ''
-        ln -s $out/bin/calico $out/bin/calico-ipam
     '';
 
     doInstallCheck = true;
@@ -52,6 +47,5 @@ buildGoModule rec {
             cluster.
         '';
         license = licenses.asl20;
-        maintainers = with maintainers; [ jk ];
     };
 }

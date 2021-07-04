@@ -1,9 +1,11 @@
-{ config, lib, pkgs, ... }:
-{
-    imports = [
-        ./certs
-        ./hardening
-        ./pam
+{ config, lib, pkgs, ... }: let
+    inherit (lib.arnix) mkProfile;
+in mkProfile {
+    requires.profiles = [
+        "core/security/certs"
+        "core/security/doas"
+        "core/security/hardening"
+        "core/security/pam"
     ];
 
     users = {
@@ -13,25 +15,8 @@
         groups.sysconf.gid = 600;
     };
 
-    security = {
-        # enable auditing
-        auditd.enable = true;
-
-        # replace sudo with doas by default
-        sudo.enable = lib.mkDefault false;
-
-        doas = {
-            enable = lib.mkDefault true;
-            extraRules = [
-                rec {
-                    groups = [ "wheel" ];
-                    noPass = !config.security.doas.wheelNeedsPassword;
-                    persist = !noPass;
-                    setEnv = [ "COLORTERM" "NIX_PATH" "PATH" ];
-                }
-            ];
-        };
-    };
+    # enable auditing
+    security.auditd.enable = true;
 
     # firewall hardening - don't allow ping by default
     # (for routers, it's overridden in their templates)

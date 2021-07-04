@@ -2,7 +2,9 @@
     ./security/sftpjail
     ./security/sgx
     ./security/vault
+    ./services/cluster/kubernetes/calico
     ./services/misc/drone
+    ./services/networking/calico
     ./services/networking/eidolon
     ./services/networking/fort-validator
     ./services/networking/routinator
