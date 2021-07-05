@@ -1,4 +1,4 @@
-{ config, stdenv, lib, kernel, fetchurl, fetchFromGitHub, ... }:
+{ stdenv, lib, kernel, fetchurl, fetchFromGitHub, ... }:
 assert lib.versionAtLeast kernel.version "5.10";
 
 stdenv.mkDerivation rec {
