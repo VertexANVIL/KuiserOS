@@ -2,6 +2,7 @@
     modules = [
         "services/networking/firewall.nix"
         "services/networking/fort-validator.nix"
+        "services/networking/tayga.nix"
         "virtualisation/containerd.nix"
     ];
     disabledModules = [];

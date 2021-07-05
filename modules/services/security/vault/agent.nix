@@ -7,9 +7,6 @@ let
     cfg = config.services.vault-agent;
 
     configFile = pkgs.writeText "vault-agent.hcl" ''
-        #exit_after_auth = true
-        #pid_file = "./pidfile"
-
         auto_auth {
             ${optionalString cfg.autoAuth.methods.appRole.enable ''
             method "approle" {

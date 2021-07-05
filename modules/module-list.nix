@@ -6,7 +6,6 @@
     ./services/misc/drone
     ./services/networking/calico
     ./services/networking/eidolon
-    ./services/networking/tayga
     ./services/security/vault
     ./services/web-apps/mediawiki
 ]

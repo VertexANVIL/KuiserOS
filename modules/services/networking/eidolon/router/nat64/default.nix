@@ -38,7 +38,7 @@ in {
     };
 
     config = mkIf cfg.enable {
-        services.tayga = with utils; {
+        services.networking.tayga = with utils; {
             enable = true;
 
             ipv4 = {
