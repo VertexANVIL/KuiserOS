@@ -4,10 +4,6 @@ final: prev: {
     vtflib = prev.callPackage ./development/libraries/vtflib { };
     #nodePackagesCustom = import ./development/node-packages { pkgs = final; };
 
-    # misc
-    intel-sgx-sdk = prev.callPackage (import ./misc/sgx { type = "sdk"; }) { };
-    intel-sgx-psw = prev.callPackage (import ./misc/sgx { type = "psw"; }) { };
-
     # os-specific
     linuxPackages = import ./os-specific/linux { inherit final prev; };
 

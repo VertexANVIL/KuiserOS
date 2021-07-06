@@ -1,5 +1,6 @@
 {
     modules = [
+        "security/sgx.nix"
         "security/vault/keys.nix"
         "services/hardware/hp-ams.nix"
         "services/networking/firewall.nix"
@@ -21,6 +22,7 @@
         #inherit nixFlakes nixUnstable; # WHAT ???
 
         # packages pulled from upstream
-        inherit juju enigma libcamera openenclave-sgx fort-validator hp-ams;
+        inherit juju enigma libcamera openenclave-sgx fort-validator hp-ams
+            intel-sgx-sdk intel-sgx-psw intel-sgx-dcap intel-sgx-sgx1;
     })];
 }

@@ -1,6 +1,5 @@
 [
     ./security/sftpjail
-    ./security/sgx
     ./services/cluster/kubernetes/calico
     ./services/misc/drone
     ./services/networking/calico
