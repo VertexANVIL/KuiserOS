@@ -9,7 +9,6 @@ final: prev: {
     intel-sgx-psw = prev.callPackage (import ./misc/sgx { type = "psw"; }) { };
 
     # os-specific
-    hp-ams = prev.callPackage ./os-specific/linux/hpe/ams { };
     linuxPackages = import ./os-specific/linux { inherit final prev; };
 
     # tools

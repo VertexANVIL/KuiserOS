@@ -1,5 +1,6 @@
 {
     modules = [
+        "services/hardware/hp-ams.nix"
         "services/networking/firewall.nix"
         "services/networking/fort-validator.nix"
         "services/networking/tayga.nix"
@@ -18,6 +19,6 @@
         #inherit nixFlakes nixUnstable; # WHAT ???
 
         # packages pulled from upstream
-        inherit juju enigma libcamera openenclave-sgx fort-validator;
+        inherit juju enigma libcamera openenclave-sgx fort-validator hp-ams;
     })];
 }
