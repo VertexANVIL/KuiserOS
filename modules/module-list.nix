@@ -1,11 +1,10 @@
 [
     ./security/sftpjail
     ./security/sgx
-    ./security/vault
     ./services/cluster/kubernetes/calico
     ./services/misc/drone
     ./services/networking/calico
     ./services/networking/eidolon
-    ./services/security/vault
+    ./services/security/vault-ssh-helper
     ./services/web-apps/mediawiki
 ]
