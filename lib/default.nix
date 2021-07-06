@@ -1,10 +1,12 @@
 { baseInputs, ... }:
 let
-    nixos = baseInputs.nixos.lib;
-    inherit (nixos) fix;
+    # Use unstable lib because some packages depend on it
+    # TODO: it should really only be used for those specific ones
+    nixLib = baseInputs.unstable.lib;
+    inherit (nixLib) fix;
 in fix (self: { inputs ? {}, extender ? {} }@all: let
     # construct internal lib
-    lib = nixos // {
+    lib = nixLib // {
         arnix = self all;
     };
 

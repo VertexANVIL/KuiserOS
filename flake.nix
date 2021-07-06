@@ -38,7 +38,6 @@
 
     outputs = inputs@{ self, nixos, ... }: let
         lib = import ./lib {
-            inherit (nixos) lib;
             baseInputs = inputs;
         };
     in (lib.mkRootArnixRepo { inputs = inputs // { inherit lib; }; });
