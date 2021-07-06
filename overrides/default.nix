@@ -24,5 +24,8 @@
         # packages pulled from upstream
         inherit juju enigma libcamera openenclave-sgx fort-validator hp-ams
             intel-sgx-sdk intel-sgx-psw intel-sgx-dcap intel-sgx-sgx1;
+        
+        # temporary
+        inherit linuxPackages;
     })];
 }
