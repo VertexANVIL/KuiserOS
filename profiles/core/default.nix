@@ -18,7 +18,7 @@ in mkProfile {
         systemPackages = with pkgs; [
             # general purpose tools
             direnv tree jq screen rsync
-            ripgrep zip unzip git pwgen
+            ripgrep zip unzip git pwgen openssl
 
             # network tools
             nmap whois curl wget
