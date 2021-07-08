@@ -44,7 +44,7 @@ rec {
 
     hardeningProfiles.networked = hardeningProfiles.isolate // {
         IPAddressDeny = [ "" ];
-        PrivateNetwork = "no";
+        PrivateNetwork = false;
         RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
     };
 
