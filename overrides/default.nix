@@ -7,6 +7,7 @@
         "services/networking/fort-validator.nix"
         "services/networking/tayga.nix"
         "services/security/vault-agent.nix"
+        "system/boot/loader/systemd-boot/systemd-boot.nix"
         "virtualisation/containerd.nix"
     ];
     disabledModules = [];
@@ -24,8 +25,5 @@
         # packages pulled from upstream
         inherit juju enigma libcamera openenclave-sgx fort-validator hp-ams
             intel-sgx-sdk intel-sgx-psw intel-sgx-dcap intel-sgx-sgx1;
-        
-        # temporary
-        inherit linuxPackages;
     })];
 }
