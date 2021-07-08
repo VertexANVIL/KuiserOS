@@ -1,4 +1,4 @@
-{ pkgs, hardware, ... }:
+{ lib, pkgs, hardware, ... }:
 let
     inherit (lib.arnix) mkProfile;
 in mkProfile {
