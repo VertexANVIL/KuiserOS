@@ -1,5 +1,6 @@
 result
 temporary
+__pycache__
 .direnv
 .vscode
 .venv

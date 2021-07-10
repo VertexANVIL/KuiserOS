@@ -2,7 +2,7 @@
 let
     inherit (builtins) attrNames attrValues readDir mapAttrs pathExists;
     
-    inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' splitString
+    inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' splitString concatStrings
         recursiveUpdate substring optional removePrefix nameValuePair makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
     inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
@@ -128,7 +128,7 @@ in rec {
         inherit (baseInputs) colmena;
         inherit (colmena.lib.${system}) mkColmenaHive;
     in mkColmenaHive {
-        inherit system nodes;
+        inherit system nodes lib;
     };
 
     # shared repo creation function
@@ -195,6 +195,7 @@ in rec {
             _internal = rec {
                 inherit name;
 
+                roots = [ root ];
                 users = optionalPath (root + "/users") (p: mkProfileAttrs { dir = toString p; }) { };
                 profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs { dir = toString p; })) { };
 
@@ -219,7 +220,16 @@ in rec {
         })) // {
             _internal = mkEachSystem (system: pkgs: {
                 # this lets children add stuff to the shell
-                shell = optionalPath (root + "/shell") (p: import p { inherit pkgs; }) {};
+                shell = optionalPath (root + "/shell") (p: let
+                    # current repo's working dir is added; parent repos are added as store paths
+                    allRoots = map (i: if i == root then "$(pwd)" else i) self._internal.roots;
+                    i = import p { inherit pkgs root; };
+                in i // { shellHook = ''
+                    # merge down the path / pythonpath
+                    export PATH="$PATH${concatStrings (map (r: ":${r}/bin") allRoots)}"
+                    export PYTHONPATH="$PYTHONPATH${concatStrings (map (r: ":${r}/lib/python") allRoots)}"
+                '' + (if hasAttr "shellHook" i then i.shellHook else ""); }
+                ) {};
             });
         };
     in recursiveUpdate outputs systemOutputs;

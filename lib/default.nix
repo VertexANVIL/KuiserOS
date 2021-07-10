@@ -51,7 +51,7 @@ in rec {
     inherit (importers) pkgImport pathsToImportedAttrs recImportFiles recImportDirs nixFilesIn;
     inherit (generators) genPkgs genPackagesOutput mkProfileAttrs mkVersion mkInputStorePath
         mkColmenaHiveNodes mkRootArnixRepo mkArnixRepo;
-    inherit (misc) optionalPath optionalPathImport isIPv6;
+    inherit (misc) optionalPath optionalPathImport isIPv6 tryEval';
 
     inherit (objects.addrs) addrOpts addrToString addrToOpts addrsToOpts;
 } // extender) {}

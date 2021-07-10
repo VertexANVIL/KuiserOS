@@ -1,18 +1,12 @@
-{ pkgs }:
-
-let
-    # tools to push Vault approles
-    pushHostApproles = pkgs.writeScriptBin "push-host-vault-keys" (builtins.readFile ./../tools/push-host-vault-keys.py);
-in {
+{ pkgs, root }:
+{
     nativeBuildInputs = (with pkgs; [
-        python3 consul-template
-        nixos-generators
-    ]) ++ (with pkgs.python38Packages; [
-        hvac paramiko Fabric
-        
+        python3 nixos-generators
+        consul-template inix-helper
+    ]) ++ (with pkgs.python3Packages; [
+        black hvac icmplib tabulate paramiko Fabric
+
         # not supported on x86_64-darwin, breaks `nix flake check`
         # tpm2-pytss
-    ]) ++ [
-        pushHostApproles
-    ];
+    ]);
 }
