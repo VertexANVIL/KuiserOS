@@ -22,3 +22,55 @@ Warning: Probably useful as a reference only! This contains some assumptions and
 ```
 nixos-generate -f iso --flake .#@default
 ```
+
+### Operator Framework
+
+The Operator Framework is part of the core of Arnix. It's a set of Python command-line utilities that provides an abstracted interface to deploy NixOS machines via Colmena and otherwise interact with the repository, available with the `operator` command.
+
+The full list of commands is available via `operator --help`.
+
+Examples:
+
+- Listing all machines in the flake
+```
+[alex@kuiser:~/src/corp/arctarus/infra/nix]$ operator list
+ID                 DNS                                      Reachability
+-----------------  ---------------------------------------  --------------
+ais.fra1.bdr1      ens18.bdr1.fra1.as210072.net             Down
+ais.lon2.bdr1      ens18.bdr1.lon2.as210072.net             Up (16.189ms)
+ais.stir1.descent  descent.stir1.arctarus.net               Up (28.727ms)
+ais.stir1.dns1     dns1.stir1.arctarus.net                  Up (29.159ms)
+ais.stir1.ubnt1    ubnt1.stir1.arctarus.net                 Up (29.143ms)
+ais.stir1.vault1   vault1.stir1.arctarus.net                Up (29.482ms)
+hcp.stir1.git      external-git.prod.self.stir1.hcpdns.net  Up (30.708ms)
+misc.bode.avalon   srv1.avalonsrv.com                       Up (28.42ms)
+```
+
+- Deploying a machine
+```
+[alex@kuiser:~/src/corp/arctarus/infra/nix]$ operator deploy -m ais.lon2.bdr1
+2021-07-11 01:39:58 kuiser arnix[220546] INFO Running deployment...
+[INFO ] Enumerating nodes...
+[INFO ] Selected 1 out of 8 hosts.
+ais.lon2.bdr1 ✅ 0s Build successful
+ais.lon2.bdr1 ✅ 1s Activation successful
+2021-07-11 01:40:08 kuiser arnix[220546] INFO Running post-deploy actions...
+2021-07-11 01:40:08 kuiser arnix[220546] DEBUG Updating Vault configuration for ais.lon2.bdr1
+2021-07-11 01:40:10 kuiser arnix[220546] DEBUG 2 keys deployed
+```
+
+- Deploying multiple machines
+```
+[alex@kuiser:~/src/corp/arctarus/infra/nix]$ operator deploy -m ais.stir1.dns1,ais.stir1.vault1
+2 machine(s) will be deployed:
+    ais.stir1.dns1
+    ais.stir1.vault1
+Continue? Y/n: Y
+2021-07-11 01:48:26 kuiser arnix[236327] INFO Running deployment...
+[INFO ] Enumerating nodes...
+[INFO ] Selected 2 out of 8 hosts.
+           (...) ✅ 7s Build successful
+ais.stir1.vault1 ✅ 1m Activation successful
+  ais.stir1.dns1 ✅ 1m Activation successful
+2021-07-11 01:50:42 kuiser arnix[236327] INFO Running post-deploy actions...
+```

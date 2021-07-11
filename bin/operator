@@ -78,6 +78,8 @@ class CommandHandler:
         for m in self._unit.machines.values():
             data.append([m.id, m.dns, self._unit.reachability[m.id]])
 
+        # TODO: showing whether configuration is up to date;
+        # we can do this by comparing the configuration output path to the active derivation currently on the machine?
         print(tabulate.tabulate(data, ["ID", "DNS", "Reachability"]))
 
     def run(self):

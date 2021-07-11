@@ -1,35 +1,41 @@
-{ lib, inputs }: with inputs;
+{ lib, inputs }:
 let
-    inherit (lib) flatten;
+    inherit (lib) flatten genAttrs;
     inherit (builtins) attrValues;
 
     hmModules = { };
     mkOverlay = name: pkg: (final: prev: { "${name}" = pkg; });
 in
 {
-    modules = [
+    modules = with inputs; [
         home.nixosModules.home-manager
         impermanence.nixosModules.impermanence
     ] ++ (flatten [
         (attrValues colmena.nixosModules)
     ]);
 
-    overlays = [
+    overlays = with inputs; [
         nur.overlay
 
         # for packages imported from flakes
-        (final: prev: {
-            nix = nix.packages.${prev.system}.nix;
-            colmena = colmena.packages.${prev.system}.colmena;
-            nixos-generators = nixos-generators.packages.${prev.system}.nixos-generators;
-        })
+        (final: prev: let
+            importNamed = names: genAttrs names (n:
+                inputs.${n}.packages.${prev.system}.${n}
+            );
+        in ({
+            # packages that don't follow the rule here
+        }) // (importNamed [
+            "colmena"
+            "nix"
+            "nixos-generators"
+        ]))
     ];
 
     # passed to all nixos modules
     specialArgs = {
         inherit hmModules;
 
-        overrideModulesPath = "${unstable}/nixos/modules";
-        hardware = nixos-hardware.nixosModules;
+        overrideModulesPath = "${inputs.unstable}/nixos/modules";
+        hardware = inputs.nixos-hardware.nixosModules;
     };
 }

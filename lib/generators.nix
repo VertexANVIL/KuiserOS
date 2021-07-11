@@ -215,21 +215,26 @@ in rec {
                 pkgs = (genPkgs root inputs).${system};
             in f system pkgs);
         in (mkEachSystem (system: pkgs: {
-            devShell = pkgs.mkShell self._internal.shell.${system};
+            devShell = let
+                # current repo's working dir is added; parent repos are added as store paths
+                allRoots = map (i: if i == root then "$(pwd)" else i) self._internal.roots;
+                shellAttrs = self._internal.shell.${system};
+            in pkgs.mkShell (shellAttrs // {
+                shellHook = ''
+                    # merge down the path / pythonpath
+                    export PATH="$PATH${concatStrings (map (r: ":${r}/bin") allRoots)}"
+                    export PYTHONPATH="$PYTHONPATH${concatStrings (map (r: ":${r}/lib/python") allRoots)}"
+
+                    # set our PS1 line
+                    export PS1='\[\033[35m\][operator shell [${self._internal.name}]]\[\033[32m\] \w\[\033[0m\]> '
+                '' + (if hasAttr "shellHook" shellAttrs then shellAttrs.shellHook else "");
+            });
+
             packages = flattenTreeSystem system (genPackagesOutput root inputs pkgs);
         })) // {
             _internal = mkEachSystem (system: pkgs: {
                 # this lets children add stuff to the shell
-                shell = optionalPath (root + "/shell") (p: let
-                    # current repo's working dir is added; parent repos are added as store paths
-                    allRoots = map (i: if i == root then "$(pwd)" else i) self._internal.roots;
-                    i = import p { inherit pkgs root; };
-                in i // { shellHook = ''
-                    # merge down the path / pythonpath
-                    export PATH="$PATH${concatStrings (map (r: ":${r}/bin") allRoots)}"
-                    export PYTHONPATH="$PYTHONPATH${concatStrings (map (r: ":${r}/lib/python") allRoots)}"
-                '' + (if hasAttr "shellHook" i then i.shellHook else ""); }
-                ) {};
+                shell = optionalPath (root + "/shell") (p: import p { inherit pkgs root; }) {};
             });
         };
     in recursiveUpdate outputs systemOutputs;

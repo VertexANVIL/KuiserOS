@@ -114,6 +114,7 @@ class DeploymentUnit:
                 return
 
         if not post_only:
+            logger.info("Running deployment...")
             self._call_colmena("apply", args, False)
 
         # run post-deploy actions

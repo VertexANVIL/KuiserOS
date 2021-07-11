@@ -50,7 +50,7 @@ class VaultHandler(BaseHandler):
     def __init__(self):
         self._client = self._get_client()
         if not self._client:
-            logger.error("Vault connection could not be validated. Keys will not be uploaded.")
+            logger.error("Vault connection could not be validated, keys will not be uploaded. Are you signed in?")
     
     def _get_client(self) -> hvac.Client:
         """
