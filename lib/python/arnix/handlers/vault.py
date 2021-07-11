@@ -63,7 +63,7 @@ class VaultHandler(BaseHandler):
 
         try:
             client.lookup_token(client.token)
-        except hvac.exceptions.VaultError:
+        except Exception:
             return None
         
         return client
