@@ -15,6 +15,7 @@ in
     ]);
 
     overlays = with inputs; [
+        nix.overlay
         nur.overlay
 
         # for packages imported from flakes
@@ -24,9 +25,9 @@ in
             );
         in ({
             # packages that don't follow the rule here
+            nixUnstable = prev.nix;
         }) // (importNamed [
             "colmena"
-            "nix"
             "nixos-generators"
         ]))
     ];
