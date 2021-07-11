@@ -3,6 +3,7 @@
 with lib;
 
 let
+    inherit (lib.arnix) defaultAttrs;
     inherit (utils) addrOpts addrsToOpts addrToString;
     inherit (utils.router) routeOpts resolvePeers;
 
@@ -28,8 +29,8 @@ let
             default = mkOption {
                 type = types.nullOr types.str;
                 default = let n = config.networking; in if (v == 6)
-                    then n.defaultGateway6.address
-                    else n.defaultGateway.address;
+                    then defaultAttrs n.defaultGateway6 null (x: x.address)
+                    else defaultAttrs n.defaultGateway null (x: x.address);
                 description = "Gateway for the IPv${toString v} default route. Defaults to the system default gateway.";
             };
 
@@ -120,11 +121,11 @@ in {
         };
     };
 
-    config = mkIf (eidolon.enable && cfg.enable) {
+    config = mkMerge [{
         _module.args.utils.router = utils // (import ./utils.nix {
             inherit config lib regions utils;
         });
-
+    } (mkIf (eidolon.enable && cfg.enable) {
         networking = {
             interfaces.dummy0 = {
                 # set the dummy as primary since it will be routed
@@ -150,5 +151,5 @@ in {
                     '') peer.neighbor.v6addrs
             )))}
         '';
-    };
+    })];
 }

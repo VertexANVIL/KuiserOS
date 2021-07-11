@@ -32,6 +32,11 @@ def parse_args() -> argparse.Namespace:
         default=".",
         help="The flake path to source machines from",
     )
+    parser.add_argument(
+        "--show-trace",
+        action="store_true",
+        help="Shows Nix traces",
+    )
 
     subparsers = parser.add_subparsers(dest="operation")
     subparsers.required = True
@@ -46,10 +51,10 @@ def parse_args() -> argparse.Namespace:
     )
     add_machine_arguments(deploy_parser)
 
-    introspect_parser = subparsers.add_parser(
-        "introspect", help="Displays configuration for the specified machine"
+    inspect_parser = subparsers.add_parser(
+        "inspect", help="Displays configuration for the specified machine"
     )
-    add_machine_arguments(introspect_parser)
+    add_machine_arguments(inspect_parser)
 
     subparsers.add_parser("list", help="Lists all the machines in this flake")
 
@@ -63,9 +68,9 @@ def parse_args() -> argparse.Namespace:
 class CommandHandler:
     def __init__(self, args: argparse.Namespace):
         path = args.path if hasattr(args, "path") else None
-        self._unit = DeploymentUnit(args.flake, path)
+        self._unit = DeploymentUnit(args.flake, path, show_trace=args.show_trace)
         self._args = args
-    
+
     @property
     def _machines(self):
         m = set()
@@ -85,7 +90,7 @@ class CommandHandler:
     def run(self):
         if self._args.operation == "deploy":
             self._unit.deploy(self._machines, self._args.post_only)
-        elif self._args.operation == "introspect":
+        elif self._args.operation == "inspect":
             result = {k: v.config for k, v in self._unit.machines.items()}
             if len(self._machines) > 0:
                 result = {k: v for k, v in result.items() if k in self._machines}

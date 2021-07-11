@@ -45,7 +45,7 @@ in rec {
         inherit inputs;
     });
 
-    inherit (attrs) mapFilterAttrs genAttrs' attrCount defaultSetAttrs
+    inherit (attrs) mapFilterAttrs genAttrs' attrCount defaultAttrs defaultSetAttrs
         imapAttrsToList recursiveMerge recursiveMergeAttrsWithNames recursiveMergeAttrsWith;
     inherit (lists) filterListNonEmpty;
     inherit (importers) pkgImport pathsToImportedAttrs recImportFiles recImportDirs nixFilesIn;

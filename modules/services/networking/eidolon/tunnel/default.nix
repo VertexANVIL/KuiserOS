@@ -139,7 +139,7 @@ in {
         services.eidolon.tunnel = {
             address = mkOption {
                 type = types.str;
-                default = (utils.underlayAddr eidolon.region name 6).address;
+                default = if eidolon.region != null then (utils.underlayAddr eidolon.region name 6).address else null;
                 description = "The address to use to connect. Defaults to the underlay address.";
             };
 

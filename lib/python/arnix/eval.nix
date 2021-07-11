@@ -9,6 +9,7 @@ in
     in {
         # TODO: should we be using a seperate attribute for this?
         dns = cfg.deployment.targetHost;
+        eidolon = tryEval' cfg.services.eidolon;
 
         vault = {
             role = if (appRole.enable == true) then appRole.name else null;

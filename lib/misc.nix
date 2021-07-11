@@ -15,10 +15,9 @@ in rec {
     tryEval' = set: let
         recurse = s: mapAttrs (n: v: let
             eval = tryEval v;
-        in
-            if isAttrs eval.value
-                then recurse eval.value
-            else eval
-        ) s;
+            value = if eval.success then eval.value else null;
+        in if isAttrs value
+            then recurse value
+        else value) s;
     in recurse set;
 }

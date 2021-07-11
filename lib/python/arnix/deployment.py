@@ -10,16 +10,15 @@ from arnix.machine import Machine, LivenessStat
 from arnix.handlers.base import BaseHandler
 from arnix.handlers.vault import VaultHandler
 
-HANDLER_CLASSES = [
-    VaultHandler
-]
+HANDLER_CLASSES = [VaultHandler]
+
 
 class DeploymentUnit:
     """
     Represents a "deployment unit" capable of deploying collections of machines
     """
 
-    def __init__(self, flake: str, path: str = None):
+    def __init__(self, flake: str, path: str = None, show_trace: bool = False):
         self._flake = flake
         self._path = path
         self._machines: Mapping[str, Machine] = None
@@ -27,11 +26,12 @@ class DeploymentUnit:
 
         self._handlers = [i() for i in HANDLER_CLASSES]
         self._override_data = self._get_override_data()
+        self._show_trace = show_trace
 
     def _get_override_data(self) -> List[str]:
         result = subprocess.run(["inix-helper"], stdout=subprocess.PIPE)
         result.check_returncode()
-        return result.stdout.decode().split(";")
+        return result.stdout.decode().strip().split(";")
 
     def _call_colmena(self, command: str, args: List[str] = [], pipe: bool = True):
         flake = self._flake
@@ -41,12 +41,18 @@ class DeploymentUnit:
         params = ["colmena", command, "-i", flake]
         params += args
 
+        nix_params = []
+        nix_params.extend(self._override_data)
+        nix_params.extend(["--quiet", "--quiet"])
+        if self._show_trace:
+            nix_params.append("--show-trace")
+
         extra = {}
         if pipe:
             extra["stdout"] = subprocess.PIPE
 
         extra["env"] = os.environ
-        extra["env"]["COLMENA_NIX_ARGS"] = f"{' '.join(self._override_data)} --quiet --quiet"
+        extra["env"]["COLMENA_NIX_ARGS"] = " ".join(nix_params)
 
         result = subprocess.run(params, **extra)
         result.check_returncode()
@@ -72,7 +78,7 @@ class DeploymentUnit:
             self._machines[k] = Machine(k, v)
 
         return self._machines
-    
+
     @property
     def reachability(self) -> Mapping[str, LivenessStat]:
         """
@@ -82,12 +88,14 @@ class DeploymentUnit:
             return self._reachability
 
         addrs = [[v.id, v.ip] for v in self.machines.values() if v.ip]
-        hosts: List[icmplib.Host] = icmplib.multiping([v[1] for v in addrs], count=1, timeout=1, privileged=False)
+        hosts: List[icmplib.Host] = icmplib.multiping(
+            [v[1] for v in addrs], count=1, timeout=1, privileged=False
+        )
 
         results = {v.id: LivenessStat() for v in self.machines.values()}
         for i, host in enumerate(hosts):
             results[addrs[i][0]] = LivenessStat(host)
-        
+
         self._reachability = results
         return results
 
@@ -95,14 +103,14 @@ class DeploymentUnit:
         for m in hosts:
             if m not in self.machines.keys():
                 raise Exception(f"The machine {m} does not exist!")
-        
+
         args = []
 
         machines = self.machines
         if len(hosts) > 0:
             machines = {k: v for k, v in self.machines.items() if k in hosts}
             args += ["--on", ",".join(machines)]
-        
+
         # safety check if deploying more than one machine
         if len(machines) > 1:
             print(f"{len(machines)} machine(s) will be deployed:")

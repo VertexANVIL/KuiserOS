@@ -4,7 +4,6 @@ with lib;
 
 let
     cfg = config.services.eidolon;
-    utils = lib.arnix;
 in {
     imports = [ ./firewall ./router ./tunnel ];
 
@@ -30,8 +29,8 @@ in {
     };
 
     config = {
-        _module.args.utils = utils // (import ./utils.nix {
-            inherit config lib regions utils;
+        _module.args.utils = (import ./utils.nix {
+            inherit config lib regions;
         });
     };
 }
