@@ -6,5 +6,8 @@
         desktopManager.gnome.enable = true;
     };
 
-    services.gnome.chrome-gnome-shell.enable = true;
+    services.gnome = {
+        chrome-gnome-shell.enable = true;
+        gnome-keyring.enable = true;
+    };
 }

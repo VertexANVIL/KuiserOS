@@ -49,8 +49,6 @@ class VaultHandler(BaseHandler):
 
     def __init__(self):
         self._client = self._get_client()
-        if not self._client:
-            logger.error("Vault connection could not be validated, keys will not be uploaded. Are you signed in?")
     
     def _get_client(self) -> hvac.Client:
         """
@@ -59,13 +57,15 @@ class VaultHandler(BaseHandler):
         client = hvac.Client()
 
         if not client.token:
+            logger.debug("No Vault token provided. Key upload will be skipped.")
             return None
 
         try:
             client.lookup_token(client.token)
         except Exception:
+            logger.error("Failed to authenticate to Vault with the provided token. Keys will not be uploaded.")
             return None
-        
+
         return client
 
     def _push_approle(self, conn: fabric.Connection, role: str):

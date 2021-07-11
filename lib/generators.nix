@@ -226,7 +226,9 @@ in rec {
                     export PYTHONPATH="$PYTHONPATH${concatStrings (map (r: ":${r}/lib/python") allRoots)}"
 
                     # set our PS1 line
-                    export PS1='\[\033[35m\][operator shell [${self._internal.name}]]\[\033[32m\] \w\[\033[0m\]> '
+                    export PS1_PREFIX='\[\033[35m\][operator shell [${self._internal.name}]]\[\033[0m\]'
+                    export PS1_PROMPT='\[\033[32m\]\w\[\033[0m\]> '
+                    export PS1="$PS1_PREFIX $PS1_PROMPT"
                 '' + (if hasAttr "shellHook" shellAttrs then shellAttrs.shellHook else "");
             });
 
