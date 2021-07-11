@@ -8,6 +8,7 @@
         unstable.url = "github:ArctarusLimited/nixpkgs";
 
         # official flakes
+        nix.url = "github:ArctarusLimited/nix/master";
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
         # community flakes

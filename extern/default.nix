@@ -19,6 +19,7 @@ in
 
         # for packages imported from flakes
         (final: prev: {
+            nix = nix.packages.${prev.system}.nix;
             colmena = colmena.packages.${prev.system}.colmena;
             nixos-generators = nixos-generators.packages.${prev.system}.nixos-generators;
         })

@@ -19,9 +19,6 @@
     ];
 
     packages = [(pkgs: final: prev: with pkgs; {
-        # needed for our patch
-        #inherit nixFlakes nixUnstable; # WHAT ???
-
         # packages pulled from upstream
         inherit juju enigma libcamera openenclave-sgx fort-validator hp-ams
             intel-sgx-sdk intel-sgx-psw intel-sgx-dcap intel-sgx-sgx1;

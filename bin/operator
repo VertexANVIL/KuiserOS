@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+import json
+import tabulate
+import argparse
+from arnix.deployment import DeploymentUnit
+
+
+def add_machine_arguments(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "-p",
+        "--path",
+        type=str,
+        help="The path of the machines within the flake",
+    )
+    parser.add_argument(
+        "-m",
+        "--machines",
+        type=str,
+        help="Optional comma-seperated list of machines",
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Interface to Arnix operator utilities"
+    )
+    parser.add_argument(
+        "-f",
+        "--flake",
+        type=str,
+        default=".",
+        help="The flake path to source machines from",
+    )
+
+    subparsers = parser.add_subparsers(dest="operation")
+    subparsers.required = True
+
+    deploy_parser = subparsers.add_parser(
+        "deploy", help="Deploys one or more machines from a flake"
+    )
+    deploy_parser.add_argument(
+        "--post-only",
+        action="store_true",
+        help="Whether to run the post-deploy command only",
+    )
+    add_machine_arguments(deploy_parser)
+
+    introspect_parser = subparsers.add_parser(
+        "introspect", help="Displays configuration for the specified machine"
+    )
+    add_machine_arguments(introspect_parser)
+
+    subparsers.add_parser("list", help="Lists all the machines in this flake")
+
+    args = parser.parse_args()
+    if args.operation == "deploy" and not args.path and not args.machines:
+        parser.error("--on must be specified when no path is provided")
+
+    return args
+
+
+class CommandHandler:
+    def __init__(self, args: argparse.Namespace):
+        path = args.path if hasattr(args, "path") else None
+        self._unit = DeploymentUnit(args.flake, path)
+        self._args = args
+    
+    @property
+    def _machines(self):
+        m = set()
+        if self._args.machines is not None:
+            m = set(self._args.machines.split(","))
+        return m
+
+    def _list_machines(self):
+        data = []
+        for m in self._unit.machines.values():
+            data.append([m.id, m.dns, self._unit.reachability[m.id]])
+
+        print(tabulate.tabulate(data, ["ID", "DNS", "Reachability"]))
+
+    def run(self):
+        if self._args.operation == "deploy":
+            self._unit.deploy(self._machines, self._args.post_only)
+        elif self._args.operation == "introspect":
+            result = {k: v.config for k, v in self._unit.machines.items()}
+            if len(self._machines) > 0:
+                result = {k: v for k, v in result.items() if k in self._machines}
+            print(json.dumps(result))
+        elif self._args.operation == "list":
+            self._list_machines()
+        else:
+            raise NotImplementedError()
+
+
+handler = CommandHandler(parse_args())
+handler.run()
