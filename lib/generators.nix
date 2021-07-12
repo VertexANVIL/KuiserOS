@@ -1,8 +1,8 @@
 { lib, baseInputs, ... }:
 let
-    inherit (builtins) attrNames attrValues readDir mapAttrs pathExists;
+    inherit (builtins) attrNames attrValues elem readDir mapAttrs pathExists;
     
-    inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' splitString concatStrings
+    inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' mapAttrsToList splitString concatStrings
         recursiveUpdate substring optional removePrefix nameValuePair makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
     inherit (lib.kuiser) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
@@ -51,13 +51,20 @@ in rec {
     }) { } packagesNames;
 
     # Creates a special library version specific to NixOS configurations
-    nixosLib = { inputs, pkgs, ... }: let
+    nixosLib = { inputs, pkgs, home ? false, ... }: let
         inherit (inputs) self;
-        inherit (self._internal) users profiles;
 
         attrs = {
             # Constructs everything we need for a profile
-            mkProfile = attrs: let
+            mkProfile = let
+                # Sources we're allowed to pull requirements from
+                # (users, profiles) for nixos, (profiles) for hm
+                sources = if home then {
+                    inherit (self._internal.home) profiles;
+                } else {
+                    inherit (self._internal) users profiles;
+                };
+            in attrs: let
                 pathToTarget = src: path: let
                     p = splitString "/" path;
                     result = attrByPath p null src;
@@ -68,21 +75,20 @@ in rec {
                 pathsToTarget = src: paths: map (p: pathToTarget src p) paths;
                 profileDefaults = profiles: flatten ((map (p: p.defaults)) profiles);
 
-                requires = {
-                    users = pathsToTarget users (flatten (attrs.requires.users or []));
-                    profiles = pathsToTarget profiles (flatten (attrs.requires.profiles or []));
-                };
+                requires = mapAttrs (k: v:
+                    pathsToTarget v (flatten (attrs.requires.${k} or []))
+                ) sources;
             in (filterAttrs (n: v: n != "requires") attrs) // {
-                imports = (attrs.imports or [])
-                    ++ (profileDefaults requires.users)
-                    ++ (profileDefaults requires.profiles);
-
+                imports = (attrs.imports or []) ++ (flatten (
+                    mapAttrsToList (_: v: profileDefaults v) requires
+                ));
+            } // (optionalAttrs (!home) {
                 # set up our configuration for introspection use
                 kuiser = {
                     users = map (p: p._name) requires.users;
                     profiles = map (p: p._name) requires.profiles;
                 };
-            };
+            });
         };
 
         overridden = lib.kuiser.override { inherit pkgs; };
@@ -103,7 +109,7 @@ in rec {
     mkProfileAttrs = { dir, root ? dir }: let
         imports = let
             files = readDir dir;
-            p = n: v: v == "directory";
+            p = n: v: v == "directory" && !(elem n [ "modules" "profiles" ]);
         in filterAttrs p files;
 
         f = n: _: let
@@ -198,6 +204,11 @@ in rec {
                 roots = [ root ];
                 users = optionalPath (root + "/users") (p: mkProfileAttrs { dir = toString p; }) { };
                 profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs { dir = toString p; })) { };
+
+                home = {
+                    modules = optionalPath (root + "/users/modules/module-list.nix") (p: moduleAttrs (import p)) { };
+                    profiles = optionalPath (root + "/users/profiles") (p: mkProfileAttrs { dir = toString p; }) { };
+                };
 
                 # import the external input files
                 extern = optionalPath (root + "/extern") (p: import p { inherit lib inputs; }) { };
@@ -315,7 +326,7 @@ in rec {
     }: let
         inherit (inputs) self;
         inherit (nixos.lib) nixosSystem;
-        inherit (self._internal) users profiles extern overrides;
+        inherit (self._internal) extern home overrides profiles users;
     in makeOverridable nixosSystem {
         inherit system;
 
@@ -333,9 +344,13 @@ in rec {
             global = with lib.kuiser.modules; [
                 (globalDefaults { inherit inputs pkgs name; })
                 (hmDefaults {
-                    # TODO: inherit specialArgs, modules
-                    specialArgs = {};
-                    modules = [];
+                    sharedModules = extern.home.modules ++ (attrValues home.modules);
+                    extraSpecialArgs = let
+                        lib = nixosLib { inherit inputs pkgs; home = true; };
+                    in extern.home.specialArgs // {
+                        # extend the `lib` namespace with home-manager's `hm`
+                        lib = lib // { hm = inputs.home.lib.hm; };
+                    };
                 })
             ];
 

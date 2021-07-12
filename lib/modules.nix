@@ -31,14 +31,13 @@ in {
     };
 
     # Default home-manager configuration
-    hmDefaults = { specialArgs, modules }: {
-        config = { # TODO: conditional enable, don't need for server profiles
+    hmDefaults = { sharedModules, extraSpecialArgs }: {
+        config = {
             home-manager = {
+                inherit sharedModules extraSpecialArgs;
+
                 useGlobalPkgs = true;
                 useUserPackages = true;
-
-                extraSpecialArgs = specialArgs;
-                sharedModules = modules;
             };
         };
     };

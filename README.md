@@ -22,7 +22,6 @@ Differences between KuiserOS and DevOS:
 - For simplicitly, suites are not supported. The reasoning here is that you can do everything that suites can do just by creating your own profiles.
 - KuiserOS implements its own profile import system, via `mkProfile` and the `requires` attribute.
 - KuiserOS is currently not compatible with legacy tools such as `nixos-option`. This will be supported in the future.
-- KuiserOS does not currently support custom home-manager modules. This will be supported in the future.
 
 ### Folder Structure
 

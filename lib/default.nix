@@ -1,7 +1,6 @@
 { baseInputs, ... }:
 let
     # Use unstable lib because some packages depend on it
-    # TODO: it should really only be used for those specific ones
     nixLib = baseInputs.unstable.lib;
     inherit (nixLib) fix;
 in fix (self: { inputs ? {}, extender ? {} }@all: let

@@ -34,9 +34,14 @@ in
 
     # passed to all nixos modules
     specialArgs = {
-        inherit hmModules;
-
         overrideModulesPath = "${inputs.unstable}/nixos/modules";
         hardware = inputs.nixos-hardware.nixosModules;
+    };
+
+    # added to home-manager
+    # equivalent to modules and specialArgs
+    home = {
+        modules = [];
+        specialArgs = {};
     };
 }

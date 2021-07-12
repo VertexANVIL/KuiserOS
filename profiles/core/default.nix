@@ -40,10 +40,14 @@ in mkProfile {
         ];
 
         # set up general pager options
-        sessionVariables = {
+        variables = {
             PAGER = "less -R";
             LESS = "-iFJMRW -x4";
             LESSOPEN = "|${pkgs.lesspipe}/bin/lesspipe.sh %s";
+
+            # Vault Production Hardening:
+            # hide vault commands by default
+            HISTIGNORE = "&:vault*";
         };
     };
 

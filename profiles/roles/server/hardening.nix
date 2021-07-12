@@ -16,11 +16,4 @@
             "kernel.ftrace_enabled" = false;
         };
     };
-
-    # TODO: should this be in *all* profiles?
-    environment.variables = {
-        # Vault Production Hardening:
-        # hide vault commands by default
-        "HISTIGNORE" = "&:vault*";
-    };
 }
