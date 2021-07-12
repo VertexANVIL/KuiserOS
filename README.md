@@ -1,11 +1,33 @@
 ## KuiserOS
 
-This repository is intended to unify the common NixOS modules used for both Arctarus and my own machine configurations. The structure is inspired by [DevOS](https://github.com/divnix/devos), with a couple borrowed library functions.
+This repository is an *experimental* NixOS framework that implements many of the features found in [DevOS](https://github.com/divnix/devos), however targeted towards complex enterprise deployments.
 
-Warning: Probably useful as a reference only! This contains some assumptions and defaults that you probably don't want, unless you are an Arctarus employee that is.
+Examples of KuiserOS configuration repositories:
+  - https://github.com/CitadelCore/nixflk
 
-- `extern`: External imports. Same as with devos.
-- `hosts`: Contains hosts, may or may not be present.
+### Features
+
+While KuiserOS is similar to DevOS in many ways, logically it is a rewrite from the ground up and does not share much code from the latter.
+
+- **Operator**. The Operator component of KuiserOS is a set of Python tooling available as `operator` from any KuiserOS repo with the `nix develop` command. This allows you to list, inspect, and deploy machines, via the deployment tool Colmena.
+- **Composability**. This is an integral part of KuiserOS, and allows configuration from multiple repositories to be merged together in order to facilitate DRY principles. `lib`, `users`, `profiles`, `extern`, and `overrides` are combined.
+- **Complex monorepo support**. Through the `generator` argument on `mkRepo`, you can divide your systems up into collections, like regions, allowing everything to remain located in one place while staying tidy.
+- **Eidolon RIS**. Eidolon RIS, a declarative meshed BGP routing solution, is available through KuiserOS with the `services.eidolon.enable` attribute. See the [readme](./modules/services/networking/eidolon/README.md) for more information.
+- KuiserOS by default builds clean with sensible security hardening options enabled by default, unless you choose to explicitly disable them.
+- Many useful library functions not available in NixOS are included, as well as convenience attributes like systemd hardening profiles, are included.
+- The convenience tool `inix` is included to make working with flakes less painful. Simply set the `$NIX_FLAKE_URL_OVERRIDES` environment variable, and the `inix` command will override flake inputs automatically without you having to type `--override-input` every time.
+
+Differences between KuiserOS and DevOS:
+- By default, the `hosts` folder behaves the same as DevOS (one .nix file per host), but this is configurable to be a folder per host instead.
+- For simplicitly, suites are not supported. The reasoning here is that you can do everything that suites can do just by creating your own profiles.
+- KuiserOS implements its own profile import system, via `mkProfile` and the `requires` attribute.
+- KuiserOS is currently not compatible with legacy tools such as `nixos-option`. This will be supported in the future.
+- KuiserOS does not currently support custom home-manager modules. This will be supported in the future.
+
+### Folder Structure
+
+- `extern`: (Same as DevOS) External imports.
+- `hosts`: (Same as DevOS) Contains hosts, may or may not be present.
 - `lib`: Shared library functions.
 - `modules`: NixOS and home-manager modules.
 - `overlays`: Package overlays.
@@ -13,7 +35,6 @@ Warning: Probably useful as a reference only! This contains some assumptions and
 - `pkgs`: Structured the same as the `nixpkgs` folder tree, contains our own custom packages as well as supporting files and patches for existing ones.
 - `profiles`: Shared NixOS machine configurations.
 - `templates`: Top-level templates from which NixOS machine images (ISOs etc) can be built.
-- `tools`: Supporting scripts and utilities that don't fit anywhere else.
 
 ### Building Images
 
