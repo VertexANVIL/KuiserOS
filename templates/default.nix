@@ -1,5 +1,5 @@
 { lib, ... }: let
-    inherit (lib.arnix) mkProfile;
+    inherit (lib.kuiser) mkProfile;
 
     mkTemplate = p: mkProfile {
         requires.profiles = [ "roles/iso" ] ++ p;

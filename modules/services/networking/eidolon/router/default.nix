@@ -3,7 +3,7 @@
 with lib;
 
 let
-    inherit (lib.arnix) defaultAttrs;
+    inherit (lib.kuiser) defaultAttrs;
     inherit (utils) addrOpts addrsToOpts addrToString;
     inherit (utils.router) routeOpts resolvePeers;
 

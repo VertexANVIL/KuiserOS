@@ -1,4 +1,4 @@
-from arnix.machine import Machine
+from kuiseros.machine import Machine
 
 class BaseHandler():
     def run(self, machine: Machine):

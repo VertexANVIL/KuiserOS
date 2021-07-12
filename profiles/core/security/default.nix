@@ -1,5 +1,5 @@
 { config, lib, pkgs, ... }: let
-    inherit (lib.arnix) mkProfile;
+    inherit (lib.kuiser) mkProfile;
 in mkProfile {
     requires.profiles = [
         "core/security/certs"

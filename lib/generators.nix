@@ -4,7 +4,7 @@ let
     
     inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' splitString concatStrings
         recursiveUpdate substring optional removePrefix nameValuePair makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
-    inherit (lib.arnix) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
+    inherit (lib.kuiser) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
     inherit (baseInputs) nixos flake-utils;
 in rec {
@@ -16,7 +16,7 @@ in rec {
         inherit (flake-utils.lib) eachDefaultSystem;
 
         # create a version of lib with our generated packages and inject it
-        derivedLib = system: lib.arnix.override { pkgs = pkgs.${system}; };
+        derivedLib = system: lib.kuiser.override { pkgs = pkgs.${system}; };
 
         pkgs = (eachDefaultSystem (system:
             let
@@ -28,7 +28,7 @@ in rec {
 
                     # extend the "lib" namespace
                     lib = (prev.lib or { }) // {
-                        arnix = derivedLib system;
+                        kuiser = derivedLib system;
                     };
                 })]
                 ++ extern.overlays
@@ -78,17 +78,17 @@ in rec {
                     ++ (profileDefaults requires.profiles);
 
                 # set up our configuration for introspection use
-                arnix = {
+                kuiser = {
                     users = map (p: p._name) requires.users;
                     profiles = map (p: p._name) requires.profiles;
                 };
             };
         };
 
-        overridden = lib.arnix.override { inherit pkgs; };
+        overridden = lib.kuiser.override { inherit pkgs; };
         final = overridden.extend attrs;
     in lib // {
-        arnix = final;
+        kuiser = final;
     };
 
     /**
@@ -132,7 +132,7 @@ in rec {
     };
 
     # shared repo creation function
-    mkInternalArnixRepo = all@{ name, root, inputs, ... }: let
+    mkInternalRepo = all@{ name, root, inputs, ... }: let
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
         inherit (inputs) self;
@@ -159,7 +159,7 @@ in rec {
 
         outputs = {
             # shared library functions
-            lib = lib.arnix;
+            lib = lib.kuiser;
 
             # this represents the packages we provide
             overlays = overlayAttrs // (genAttrs (attrNames (overlay null null)) (name: (
@@ -191,7 +191,7 @@ in rec {
                 name = "nixos";
             })) attrs;
 
-            # Internal outputs used only for passing to other Arnix repos
+            # Internal outputs used only for passing to other KuiserOS repos
             _internal = rec {
                 inherit name;
 
@@ -242,13 +242,13 @@ in rec {
     in recursiveUpdate outputs systemOutputs;
 
     # Produces flake outputs for the root repository
-    mkRootArnixRepo = all@{ inputs, ... }: mkInternalArnixRepo (all // {
+    mkRootRepo = all@{ inputs, ... }: mkInternalRepo (all // {
         name = "root";
         root = ./..;
     });
 
     # Produces flake outputs for repositories
-    mkArnixRepo = all@{
+    mkRepo = all@{
         name,
         root,
         parent,
@@ -267,7 +267,7 @@ in rec {
 
         # build the repository
         repo = let
-            local = mkInternalArnixRepo (all // { inputs = baseInputs // inputs; });
+            local = mkInternalRepo (all // { inputs = baseInputs // inputs; });
 
             # merge together the attrs we need from our parent
             shallowMerged = recursiveMergeAttrsWithNames
@@ -330,7 +330,7 @@ in rec {
             # merge down core profiles from all repos
             core.require = profiles.core.defaults;
 
-            global = with lib.arnix.modules; [
+            global = with lib.kuiser.modules; [
                 (globalDefaults { inherit inputs pkgs name; })
                 (hmDefaults {
                     # TODO: inherit specialArgs, modules
@@ -340,7 +340,7 @@ in rec {
             ];
 
             internal = { lib, ... }: with lib; {
-                options.arnix = {
+                options.kuiser = {
                     users = mkOption {
                         default = [];
                         type = types.listOf types.str;

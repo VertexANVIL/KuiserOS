@@ -5,9 +5,9 @@ import subprocess
 import fabric
 import hvac, hvac.exceptions
 
-from arnix.utils import logger
-from arnix.machine import Machine
-from arnix.handlers.base import BaseHandler
+from kuiseros.utils import logger
+from kuiseros.machine import Machine
+from kuiseros.handlers.base import BaseHandler
 
 # modified from https://github.com/fabric/fabric/issues/1750#issuecomment-389990692
 def _root_install(

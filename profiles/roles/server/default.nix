@@ -1,5 +1,5 @@
 { lib, ... }: let
-    inherit (lib.arnix) mkProfile;
+    inherit (lib.kuiser) mkProfile;
 in mkProfile {
     imports = [
         ./hardening.nix

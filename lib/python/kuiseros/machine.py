@@ -5,7 +5,7 @@ from typing import Mapping, Any
 
 class Machine:
     """
-    Represents a machine in the Arnix Operator framework
+    Represents a machine in the KuiserOS Operator framework
     """
 
     def __init__(self, id: str, config: Mapping[str, Any]):

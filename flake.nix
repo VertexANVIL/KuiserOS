@@ -41,5 +41,5 @@
         lib = import ./lib {
             baseInputs = inputs;
         };
-    in (lib.mkRootArnixRepo { inputs = inputs // { inherit lib; }; });
+    in (lib.mkRootRepo { inputs = inputs // { inherit lib; }; });
 }

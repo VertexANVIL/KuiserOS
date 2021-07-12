@@ -4,7 +4,7 @@
         nix "$@" "''\${ARGS[@]}" 
     '';
 
-    # Little helper to run nixos-rebuild while overriding the arnix path
+    # Little helper to run nixos-rebuild while overriding the KuiserOS path
     nrbScript = pkgs.writeShellScriptBin "nrb" ''
         IFS=';' read -ra ARGS <<< $(cd /etc/nixos && ${pkgs.inix-helper}/bin/inix-helper)
         sudo nixos-rebuild "$@" "''\${ARGS[@]}" 

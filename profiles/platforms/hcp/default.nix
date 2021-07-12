@@ -1,6 +1,6 @@
 { lib, pkgs, ... }:
 let
-    inherit (lib.arnix) mkInputStorePath;
+    inherit (lib.kuiser) mkInputStorePath;
 in {
     imports = [ ((mkInputStorePath "nixpkgs") + "/nixos/modules/virtualisation/openstack-config.nix") ];
 

@@ -7,7 +7,7 @@ let
 in fix (self: { inputs ? {}, extender ? {} }@all: let
     # construct internal lib
     lib = nixLib // {
-        arnix = self all;
+        kuiser = self all;
     };
 
     f = path: import path ({
@@ -50,7 +50,7 @@ in rec {
     inherit (lists) filterListNonEmpty;
     inherit (importers) pkgImport pathsToImportedAttrs recImportFiles recImportDirs nixFilesIn;
     inherit (generators) genPkgs genPackagesOutput mkProfileAttrs mkVersion mkInputStorePath
-        mkColmenaHiveNodes mkRootArnixRepo mkArnixRepo;
+        mkColmenaHiveNodes mkRootRepo mkRepo;
     inherit (misc) optionalPath optionalPathImport isIPv6 tryEval';
 
     inherit (objects.addrs) addrOpts addrToString addrToOpts addrsToOpts;

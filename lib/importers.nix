@@ -2,7 +2,7 @@
 let
     inherit (builtins) elem filter readDir parseDrvName;
     inherit (lib) hasSuffix removeSuffix nameValuePair filterAttrs mapAttrs';
-    inherit (lib.arnix) genAttrs' mapFilterAttrs;
+    inherit (lib.kuiser) genAttrs' mapFilterAttrs;
 in rec {
     # pkgImport :: Nixpkgs -> Overlays -> System -> Unfree -> Pkgs
     pkgImport = nixpkgs: overlays: system: unfree: import nixpkgs {

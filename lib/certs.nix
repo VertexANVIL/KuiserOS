@@ -2,7 +2,7 @@
 let
     inherit (builtins) readFile readDir;
     inherit (lib) hasSuffix removeSuffix nameValuePair;
-    inherit (lib.arnix) mapFilterAttrs;
+    inherit (lib.kuiser) mapFilterAttrs;
 
     certPath = ./../profiles/core/security/certs;
 in  mapFilterAttrs (_: v: v != null) (n: v:

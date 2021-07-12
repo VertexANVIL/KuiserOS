@@ -3,7 +3,7 @@
     imports = [ "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix" ];
 
     # prefix our name
-    isoImage.isoBaseName = "arnix";
+    isoImage.isoBaseName = "kuiser";
 
     # disable mutable users, as we can't use them with an iso
     users.mutableUsers = true;

@@ -5,10 +5,10 @@ import subprocess
 from pathlib import Path
 from typing import List, Set, Mapping, Any
 
-from arnix.utils import logger
-from arnix.machine import Machine, LivenessStat
-from arnix.handlers.base import BaseHandler
-from arnix.handlers.vault import VaultHandler
+from kuiseros.utils import logger
+from kuiseros.machine import Machine, LivenessStat
+from kuiseros.handlers.base import BaseHandler
+from kuiseros.handlers.vault import VaultHandler
 
 HANDLER_CLASSES = [VaultHandler]
 

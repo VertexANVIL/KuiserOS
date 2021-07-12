@@ -1,6 +1,6 @@
 { lib, nodes }: let
     inherit (lib) filterAttrs mapAttrs;
-    inherit (lib.arnix) tryEval';
+    inherit (lib.kuiser) tryEval';
     inherit (builtins) isAttrs isFunction removeAttrs;
 in
     (mapAttrs (n: v: let

@@ -3,7 +3,7 @@
 import json
 import tabulate
 import argparse
-from arnix.deployment import DeploymentUnit
+from kuiseros.deployment import DeploymentUnit
 
 
 def add_machine_arguments(parser: argparse.ArgumentParser):
@@ -23,7 +23,7 @@ def add_machine_arguments(parser: argparse.ArgumentParser):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Interface to Arnix operator utilities"
+        description="Interface to KuiserOS operator utilities"
     )
     parser.add_argument(
         "-f",
