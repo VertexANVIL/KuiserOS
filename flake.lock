@@ -151,11 +151,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1626036766,
-        "narHash": "sha256-pQ5t0qndOQGsuPE1XqhaWX+yxnUGGRaAgh9c6IFImzQ=",
+        "lastModified": 1626064259,
+        "narHash": "sha256-LGOGm5gZmjafE6PHe0U+ZAo0kGTGda1XDzQElSDozrA=",
         "owner": "ArctarusLimited",
         "repo": "nix",
-        "rev": "0967a7176d272ec5f1a01b09724f2686750c138d",
+        "rev": "216d0e8f75e52cb44007d5686b46310c00f4e3a3",
         "type": "github"
       },
       "original": {
