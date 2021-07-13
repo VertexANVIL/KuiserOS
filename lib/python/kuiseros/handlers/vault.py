@@ -67,6 +67,28 @@ class VaultHandler(BaseHandler):
             return None
 
         return client
+    
+    def _ensure_approle(self, id: str, config: dict) -> str:
+        name = f"kos_automatic.{id}"
+
+        policies = ["default"]
+        policies.extend(config["policies"])
+
+        try:
+            logger.debug(f"Provisioning Vault AppRole {name}")
+
+            self._client.auth.approle.create_or_update_approle(
+                role_name=name,
+                token_policies=policies,
+
+                # TODO: implement this
+                # token_bound_cidrs=[""],
+            )
+        except Exception:
+            logger.error(f"Failed to create AppRole {name}")
+            return None
+        
+        return name
 
     def _push_approle(self, conn: fabric.Connection, role: str):
         # Read the role ID and secret ID from Vault
@@ -150,10 +172,19 @@ class VaultHandler(BaseHandler):
             return
 
         config = machine.config.get("vault", {})
-        if not config["role"]:
+        if not config["appRole"]["enable"]:
             return
         
         logger.debug(f"Updating Vault configuration for {machine.id}")
 
-        self._push_approle(machine.conn, config["role"])
+        # If we don't have an approle name, we'll provision it ourselves
+        role = config["appRole"]["name"]
+        if not role:
+            role = self._ensure_approle(machine.id, config["appRole"])
+        
+        # Approle creation failed?
+        if not role:
+            return
+
+        self._push_approle(machine.conn, role)
         self._push_keys(machine.conn, config["keys"])

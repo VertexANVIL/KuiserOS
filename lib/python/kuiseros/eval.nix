@@ -1,5 +1,5 @@
 { lib, nodes }: let
-    inherit (lib) filterAttrs mapAttrs;
+    inherit (lib) filterAttrs mapAttrs unique;
     inherit (lib.kuiser) tryEval';
     inherit (builtins) isAttrs isFunction removeAttrs;
 in
@@ -12,7 +12,11 @@ in
         eidolon = tryEval' cfg.services.eidolon;
 
         vault = {
-            role = if (appRole.enable == true) then appRole.name else null;
+            appRole = {
+                inherit (appRole) enable name;
+                policies = appRole.policies;
+            };
+
             keys = mapAttrs (k: v:
                 # remove stuff we don't need
                 removeAttrs v [ "dependency" "postRenew" "sinks" ]
