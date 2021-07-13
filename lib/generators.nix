@@ -59,7 +59,7 @@ in rec {
     }) { } packagesNames;
 
     # Creates a special library version specific to NixOS configurations
-    nixosLib = { inputs, pkgs, home ? false, ... }: let
+    nixosLib = makeOverridable ({ inputs, pkgs, home ? false, ... }: let
         inherit (inputs) self;
 
         attrs = {
@@ -103,7 +103,7 @@ in rec {
         final = overridden.extend attrs;
     in lib // {
         kuiser = final;
-    };
+    });
 
     /**
     Synopsis: mkProfileAttrs _path_
@@ -365,7 +365,7 @@ in rec {
                         inherit unstable;
 
                         # extend the `lib` namespace with home-manager's `hm`
-                        lib = lib // { hm = inputs.home.lib.hm; };
+                        lib = lib.extend (final: prev: inputs.home.lib);
                     };
                 })
             ];
