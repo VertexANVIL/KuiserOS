@@ -6,11 +6,11 @@ let
         recursiveUpdate substring optional removePrefix nameValuePair makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
     inherit (lib.kuiser) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
-    inherit (baseInputs) nixos flake-utils;
+    inherit (baseInputs) nixos unstable flake-utils;
 in rec {
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
-    genPkgs = root: inputs: let
+    genPkgs = { root, inputs, base ? nixos }: let
         inherit (inputs) self;
         inherit (self._internal) extern overrides;
         inherit (flake-utils.lib) eachDefaultSystem;
@@ -20,7 +20,7 @@ in rec {
 
         pkgs = (eachDefaultSystem (system:
             let
-                overridePkgs = pkgImport baseInputs.unstable [ ] system overrides.unfree;
+                overridePkgs = pkgImport unstable [ ] system overrides.unfree;
                 overlays = (map (p: p overridePkgs) overrides.packages)
                 ++ [(final: prev: {
                     # add in our sources
@@ -33,9 +33,17 @@ in rec {
                 })]
                 ++ extern.overlays
                 ++ (attrValues self.overlays);
-            in { pkgs = pkgImport nixos overlays system overrides.unfree; }
+            in { pkgs = pkgImport base overlays system overrides.unfree; }
         )).pkgs;
     in pkgs;
+
+    # Generates package sets for every possible system
+    genPkgSets = { root, inputs }@all: let
+        mkSet = base: genPkgs (all // { inherit base; });
+    in {
+        nixos = mkSet nixos;
+        unstable = mkSet unstable;
+    };
 
     # Generates the "packages" flake output
     # overlay + overlays = packages
@@ -142,6 +150,8 @@ in rec {
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
         inherit (inputs) self;
+        
+        pkgSets = genPkgSets { inherit root inputs; };
 
         # list of module paths -> i.e. security/sgx
         # too bad we cannot output actual recursive attribute sets :(
@@ -185,13 +195,13 @@ in rec {
                 inherit (self._internal) users profiles;
 
                 system = "x86_64-linux";
-                pkgs = (genPkgs root inputs).${system};
+                pkgs = pkgSets.nixos.${system};
 
                 attrs = optionalPath (root + "/templates") (p: import p {
                     lib = nixosLib { inherit inputs pkgs; };
                 }) { };
             in mapAttrs' (k: v: nameValuePair "@${k}" (mkNixosSystem {
-                inherit inputs pkgs system;
+                inherit inputs system pkgSets;
 
                 config = v;
                 name = "nixos";
@@ -222,9 +232,7 @@ in rec {
         # Generate per-system outputs
         # i.e. x86_64-linux, aarch64-linux
         systemOutputs = let
-            mkEachSystem = f: eachDefaultSystem (system: let
-                pkgs = (genPkgs root inputs).${system};
-            in f system pkgs);
+            mkEachSystem = f: eachDefaultSystem (system: f system pkgSets.nixos.${system});
         in (mkEachSystem (system: pkgs: {
             devShell = let
                 # current repo's working dir is added; parent repos are added as store paths
@@ -276,6 +284,8 @@ in rec {
 
         inherit (colmena.lib.${system}) mkColmenaHive;
 
+        pkgSets = genPkgSets { inherit root inputs; };
+
         # build the repository
         repo = let
             local = mkInternalRepo (all // { inputs = baseInputs // inputs; });
@@ -292,7 +302,7 @@ in rec {
         # function to create our host attrs
         mkHosts = { root, flat ? false, bases ? [], modifier ? (_: _) }: rec {
             nixosConfigurations = mkNixosSystems {
-                inherit root system bases flat;
+                inherit root system bases flat pkgSets;
                 inputs = baseInputs // inputs;
             };
 
@@ -316,24 +326,27 @@ in rec {
     # Builds a NixOS system
     mkNixosSystem = {
         inputs, # The flake inputs
-        pkgs, # The compiled package set
         nodes ? {}, # Set of nodes to allow inter-node resolution
 
         name, # The hostname of the host
         bases ? [], # The base configurations for the repo
         config, # The base configuration for the host
         system ? "x86_64-linux", # Target system to build for
+        pkgSets, # The compiled package sets
     }: let
         inherit (inputs) self;
         inherit (nixos.lib) nixosSystem;
         inherit (self._internal) extern home overrides profiles users;
+
+        pkgs = pkgSets.nixos.${system};
+        unstable = pkgSets.unstable.${system};
     in makeOverridable nixosSystem {
         inherit system;
 
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit name nodes;
+            inherit name nodes unstable;
             lib = nixosLib { inherit inputs pkgs; };
         };
 
@@ -348,6 +361,9 @@ in rec {
                     extraSpecialArgs = let
                         lib = nixosLib { inherit inputs pkgs; home = true; };
                     in extern.home.specialArgs // {
+                        # add our unstable package set
+                        inherit unstable;
+
                         # extend the `lib` namespace with home-manager's `hm`
                         lib = lib // { hm = inputs.home.lib.hm; };
                     };
@@ -401,6 +417,7 @@ in rec {
         system ? "x86_64-linux", # Target system to build for
         bases ? {},
         flat ? false,
+        pkgSets,
     }: let
         # Generate our package set
         pkgs = (genPkgs root inputs).${system};
@@ -411,7 +428,7 @@ in rec {
             # flat = hosts live in top-level rather than in "hosts" folder
             hostFile = root + (if flat then "/${name}" else "/hosts/${name}");
         in mkNixosSystem {
-            inherit inputs pkgs nodes name bases system;
+            inherit inputs nodes name bases system pkgSets;
 
             config.require = [ hostFile ];
         };
