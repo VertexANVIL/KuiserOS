@@ -14,8 +14,8 @@ def add_machine_arguments(parser: argparse.ArgumentParser):
         help="The path of the machines within the flake",
     )
     parser.add_argument(
-        "-m",
-        "--machines",
+        "machines",
+        nargs="?",
         type=str,
         help="Optional comma-seperated list of machines",
     )
