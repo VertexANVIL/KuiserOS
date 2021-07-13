@@ -314,11 +314,11 @@
     },
     "unstable": {
       "locked": {
-        "lastModified": 1626024460,
-        "narHash": "sha256-q/XTP5IBfg48vtqIbRgY2ZnB26g8fNkMKldHp19zFmo=",
+        "lastModified": 1626138611,
+        "narHash": "sha256-2nUFL+e0bQVHwvD36e+LTrCGuFt41tsUrMmPE6ae4D8=",
         "owner": "ArctarusLimited",
         "repo": "nixpkgs",
-        "rev": "de04c7f5a0f622ac4154ee527a8522fc038e0cb3",
+        "rev": "abfa360d5073394a4aae5dcbacce2b9a6f105a59",
         "type": "github"
       },
       "original": {
