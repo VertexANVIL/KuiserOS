@@ -8,20 +8,7 @@
             version = 2;
         };
 
-        # Forcing the kernel version to 5.2.
-        # I'm sick and tired of the stupid fucking BIRD bug with 5.3
-        # TODO: Test if this bug goes away with new TINC/WireGuard routing mesh
-        kernelPackages = pkgs.linuxPackagesFor (pkgs.linux_5_4.override {
-            argsOverride = rec {
-                version = "5.2";
-                modDirVersion = "5.2.0";
-
-                src = pkgs.fetchurl {
-                    url = "mirror://kernel/linux/kernel/v5.x/linux-${version}.tar.xz";
-                    sha256 = "1ry11b5sc20jh7flnp94m20627jzl3l09rzmfjsk3a71fbv6dbal";
-                };
-            };
-        });
+        kernelPackages = pkgs.linuxPackages_5_12;
     };
 
     networking = {

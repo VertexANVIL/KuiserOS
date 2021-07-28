@@ -22,27 +22,10 @@
         ];
     };
 
-    # set up our zfs filesystems
-    fileSystems = {
-        "/" = {
-            device = "rpool/local/root";
-            fsType = "zfs";
-        };
-
-        "/nix" = {
-            device = "rpool/local/nix";
-            fsType = "zfs";
-        };
-
-        "/home" = {
-            device = "rpool/safe/home";
-            fsType = "zfs";
-        };
-
-        "/persist" = {
-            device = "rpool/safe/persist";
-            fsType = "zfs";
-            neededForBoot = true;
-        };
+    # set up our zfs filesystem
+    fileSystems."/persist" = {
+        device = "rpool/safe/persist";
+        fsType = "zfs";
+        neededForBoot = true;
     };
 }

@@ -11,4 +11,22 @@
         # marked with the com.sun:auto-snapshot attribute
         autoSnapshot.enable = true;
     };
+
+    # set up our zfs filesystems
+    fileSystems = {
+        "/" = {
+            device = "rpool/local/root";
+            fsType = "zfs";
+        };
+
+        "/nix" = {
+            device = "rpool/local/nix";
+            fsType = "zfs";
+        };
+
+        "/home" = {
+            device = "rpool/safe/home";
+            fsType = "zfs";
+        };
+    };
 }

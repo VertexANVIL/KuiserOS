@@ -118,7 +118,7 @@ let
         {
             networking.localCommands = with peer; ''
                 ip link show ${interface} > /dev/null 2>&1 && ip link delete ${interface}
-                ip link add name ${interface} type ip6gre local ${cfg.address} remote ${endpoint} dev ${utils.underlay}
+                ip link add name ${interface} type ip6tnl local ${cfg.address} remote ${endpoint} dev ${utils.underlay} mode any
                 ${optionalString (v4addr != null) ''ip address add ${v4addr} dev ${interface}''} 
 
                 ip link set ${interface} multicast on
