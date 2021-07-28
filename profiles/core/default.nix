@@ -17,7 +17,7 @@ in mkProfile {
     environment = {
         systemPackages = with pkgs; [
             # general purpose tools
-            direnv tree jq screen rsync
+            direnv tree jq screen skim rsync
             ripgrep zip unzip git pwgen openssl
 
             # network tools
@@ -34,6 +34,9 @@ in mkProfile {
             usbutils pciutils
             lshw hwinfo dmidecode
 
+            # nix tools
+            nix-index nixos-option
+
             # others
             binutils coreutils dnsutils
             iputils moreutils utillinux
@@ -48,6 +51,11 @@ in mkProfile {
             # Vault Production Hardening:
             # hide vault commands by default
             HISTIGNORE = "&:vault*";
+        };
+
+        shellAliases = {
+            # fix nixos-option
+            nixos-option = "nixos-option -I nixpkgs=${toString ../../compat}";
         };
     };
 

@@ -9,11 +9,14 @@ in {
         nix.nixPath = [
             "nixpkgs=${nixos}"
             "unstable=${unstable}"
+            "nixos-config=${self}/compat/nixos"
+            "home-manager=${home}"
         ];
 
         nix.registry = {
+            kuiser.flake = self;
             nixos.flake = nixos;
-            nixpkgs.flake = nixos;
+            unstable.flake = unstable;
         };
 
         # set up system hostname
