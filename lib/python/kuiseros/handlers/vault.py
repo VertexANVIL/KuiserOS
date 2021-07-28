@@ -1,4 +1,5 @@
 import io
+import os
 import tempfile
 import subprocess
 
@@ -54,7 +55,7 @@ class VaultHandler(BaseHandler):
         """
         Attempts to perform basic validation on the client
         """
-        client = hvac.Client()
+        client = hvac.Client(verify=os.getenv("VAULT_CACERT"))
 
         if not client.token:
             logger.debug("No Vault token provided. Key upload will be skipped.")
