@@ -1,4 +1,8 @@
 final: prev: {
+    # applications
+    kata-images = prev.callPackage ./applications/virtualization/kata-images { };
+    kata-runtime = prev.callPackage ./applications/virtualization/kata-runtime { };
+
     # development
     qvtf = prev.callPackage ./development/libraries/qvtf { };
     vtflib = prev.callPackage ./development/libraries/vtflib { };
