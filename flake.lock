@@ -1,5 +1,26 @@
 {
   "nodes": {
+    "bud": {
+      "inputs": {
+        "devshell": "devshell",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1627447597,
+        "narHash": "sha256-e7q4jCq7MPHTa0HKxX5fJS1JwZ33BN9WohWUy6sOOgA=",
+        "owner": "divnix",
+        "repo": "bud",
+        "rev": "231fa20ed93944e5b484cb5d820c60c17f4dfc35",
+        "type": "github"
+      },
+      "original": {
+        "owner": "divnix",
+        "repo": "bud",
+        "type": "github"
+      }
+    },
     "colmena": {
       "inputs": {
         "flake-compat": "flake-compat",
@@ -19,6 +40,21 @@
         "owner": "ArctarusLimited",
         "ref": "feat/flake-support",
         "repo": "colmena",
+        "type": "github"
+      }
+    },
+    "devshell": {
+      "locked": {
+        "lastModified": 1625086391,
+        "narHash": "sha256-IpNPv1v8s4L3CoxhwcgZIitGpcrnNgnj09X7TA0QV3k=",
+        "owner": "numtide",
+        "repo": "devshell",
+        "rev": "4b5ac7cf7d9a1cc60b965bb51b59922f2210cbc7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "devshell",
         "type": "github"
       }
     },
@@ -297,6 +333,7 @@
     },
     "root": {
       "inputs": {
+        "bud": "bud",
         "colmena": "colmena",
         "flake-compat": "flake-compat_2",
         "flake-utils": "flake-utils",
@@ -314,11 +351,11 @@
     },
     "unstable": {
       "locked": {
-        "lastModified": 1626138611,
-        "narHash": "sha256-2nUFL+e0bQVHwvD36e+LTrCGuFt41tsUrMmPE6ae4D8=",
+        "lastModified": 1627570907,
+        "narHash": "sha256-5Ovdzl9ipoMrg7uGuocCgjTeRQJnEB2gGtwVlWtdzQc=",
         "owner": "ArctarusLimited",
         "repo": "nixpkgs",
-        "rev": "abfa360d5073394a4aae5dcbacce2b9a6f105a59",
+        "rev": "fd2639dfe8257f76f4b6d0daf20722b997703344",
         "type": "github"
       },
       "original": {

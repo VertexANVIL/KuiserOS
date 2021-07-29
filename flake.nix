@@ -35,6 +35,11 @@
            url = "github:nix-community/home-manager/release-21.05";
            inputs.nixpkgs.follows = "nixpkgs";
         };
+
+        bud = {
+            url = "github:divnix/bud";
+            inputs.nixpkgs.follows = "nixpkgs";
+        };
     };
 
     outputs = inputs@{ self, nixos, ... }: let
