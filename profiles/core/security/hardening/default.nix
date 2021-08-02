@@ -41,9 +41,9 @@ in {
             # packets that "obviously" do not belong to the iface's network; dropped
             # packets are logged as martians).
             "net.ipv4.conf.all.log_martians" = true;
-            "net.ipv4.conf.all.rp_filter" = 1;
+            "net.ipv4.conf.all.rp_filter" = mkDefault 1;
             "net.ipv4.conf.default.log_martians" = true;
-            "net.ipv4.conf.default.rp_filter" = 1;
+            "net.ipv4.conf.default.rp_filter" = mkDefault 1;
 
             # Ignore broadcast ICMP (mitigate SMURF)
             "net.ipv4.icmp_echo_ignore_broadcasts" = true;
