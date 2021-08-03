@@ -2,6 +2,7 @@ final: prev: {
     # applications
     cilium-cli = prev.callPackage ./applications/networking/cilium-cli { };
     hubble = prev.callPackage ./applications/networking/hubble { };
+    talosctl = prev.callPackage ./applications/networking/cluster/talosctl { };
     kata-images = prev.callPackage ./applications/virtualization/kata-images { };
     kata-runtime = prev.callPackage ./applications/virtualization/kata-runtime { };
 
