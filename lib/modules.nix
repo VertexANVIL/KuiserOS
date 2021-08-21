@@ -44,4 +44,51 @@ in {
             };
         };
     };
+
+    # Packages and etc that's global to a system
+    # Shared on both NixOS and home-manager
+    systemGlobal = { pkgs }: {
+        packages = with pkgs; [
+            # general purpose tools
+            direnv tree jq screen skim rsync
+            ripgrep zip unzip git pwgen openssl
+
+            # network tools
+            nmap whois curl wget
+
+            # process tools
+            htop psmisc
+
+            # disk partition tools
+            cryptsetup dosfstools gptfdisk
+            parted fd file ntfs3g
+
+            # hardware tools
+            usbutils pciutils
+            lshw hwinfo dmidecode
+
+            # nix tools
+            nix-index nixos-option
+
+            # others
+            binutils coreutils dnsutils
+            iputils moreutils utillinux
+        ];
+
+        # set up general pager options
+        variables = {
+            PAGER = "less -R";
+            LESS = "-iFJMRW -x4";
+            LESSOPEN = "|${pkgs.lesspipe}/bin/lesspipe.sh %s";
+
+            # Vault Production Hardening:
+            # hide vault commands by default
+            HISTIGNORE = "&:vault*";
+        };
+
+        aliases = {
+            # fix nixos-option
+            nixos-option = "nixos-option -I nixpkgs=${toString ../../compat}";
+        };
+    };
 }

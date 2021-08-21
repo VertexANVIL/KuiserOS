@@ -1,9 +1,9 @@
 { lib, baseInputs, ... }:
 let
-    inherit (builtins) attrNames attrValues elem readDir mapAttrs pathExists;
+    inherit (builtins) attrNames attrValues elem readDir readFile mapAttrs pathExists;
     
-    inherit (lib) fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' mapAttrsToList splitString concatStrings
-        recursiveUpdate substring optional removePrefix nameValuePair makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
+    inherit (lib) fix fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' mapAttrsToList splitString concatStrings
+        recursiveUpdate substring optional removePrefix removeSuffix nameValuePair makeExtensible makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
     inherit (lib.kuiser) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
     inherit (baseInputs) nixos unstable flake-utils;
@@ -59,7 +59,7 @@ in rec {
     }) { } packagesNames;
 
     # Creates a special library version specific to NixOS configurations
-    nixosLib = makeOverridable ({ inputs, pkgs, home ? false, ... }: let
+    nixosLib = { inputs, pkgs, home ? false, ... }: let
         inherit (inputs) self;
 
         attrs = {
@@ -100,10 +100,16 @@ in rec {
         };
 
         overridden = lib.kuiser.override { inherit pkgs; };
-        final = overridden.extend attrs;
-    in lib // {
-        kuiser = final;
+    in lib.extend (self: super: {
+        kuiser = overridden.extend attrs;
     });
+
+    # extend the `lib` namespace with home-manager's `hm`
+    nixosLibHm = { inputs, pkgs }: let
+        lib = nixosLib { inherit inputs pkgs; home = true; };
+    in (lib.extend (self: super: {
+        hm = (import (inputs.home + "/modules/lib")) { lib = super; };
+    }));
 
     /**
     Synopsis: mkProfileAttrs _path_
@@ -114,7 +120,7 @@ in rec {
     let profiles = mkProfileAttrs ./profiles; in
     assert profiles ? core.default; 0
     **/
-    mkProfileAttrs = { dir, root ? dir }: let
+    mkProfileAttrs = { dir, root ? dir, suffix ? "" }: let
         imports = let
             files = readDir dir;
             p = n: v: v == "directory" && !(elem n [ "modules" "profiles" ]);
@@ -122,12 +128,13 @@ in rec {
 
         f = n: _: let
             path = "${dir}/${n}";
-        in optionalAttrs (pathExists "${path}/default.nix") {
+            full = "${path}${suffix}";
+        in optionalAttrs (pathExists full) {
             _name = removePrefix "${toString root}/" (toString path);
-            defaults = [ path ];
+            defaults = [ full ];
         } // mkProfileAttrs {
             dir = path;
-            inherit root;
+            inherit root suffix;
         };
     in mapAttrs f imports;
 
@@ -306,6 +313,11 @@ in rec {
                 inputs = baseInputs // inputs;
             };
 
+            homeManagerConfigurations = mkHomes {
+                inherit root system bases flat pkgSets;
+                inputs = baseInputs // inputs;
+            };
+
             colmena = mkColmenaHiveNodes system _internal.prefixedNodes;
 
             # add checks for deploy-rs
@@ -364,8 +376,7 @@ in rec {
                         # add our unstable package set
                         inherit unstable;
 
-                        # extend the `lib` namespace with home-manager's `hm`
-                        lib = lib.extend (final: prev: inputs.home.lib);
+                        lib = nixosLibHm { inherit inputs pkgs; };
                     };
                 })
             ];
@@ -419,9 +430,6 @@ in rec {
         flat ? false,
         pkgSets,
     }: let
-        # Generate our package set
-        pkgs = (genPkgs root inputs).${system};
-
         config = name: let
             inherit (inputs) self;
 
@@ -439,4 +447,48 @@ in rec {
             _import = config;
         };
     in nodes;
+
+    # Builds a set of Home Manager configurations from the users folder
+    mkHomes = {
+        inputs,
+        root,
+
+        system ? "x86_64-linux", # Target system to build for
+        bases ? {},
+        flat ? false,
+        pkgSets,
+    }: let
+        inherit (inputs) self;
+        inherit (self._internal) extern home;
+        inherit (inputs.home.lib) homeManagerConfiguration;
+
+        pkgs = pkgSets.nixos.${system};
+
+        config = username: let
+        in homeManagerConfiguration {
+            inherit system username pkgs;
+            homeDirectory = "/home/${username}";
+
+            # TODO: deduplicate these?
+            extraModules = extern.home.modules ++ (attrValues home.modules);
+            extraSpecialArgs = extern.home.specialArgs // {
+                # FIXME: impure because we need to support this for WSL
+                name = removeSuffix "\n" (readFile /etc/hostname);
+
+                # add our unstable package set
+                inherit unstable;
+
+                lib = nixosLibHm { inherit inputs pkgs; };
+            };
+
+            configuration = {
+                imports = [(root + "/users/${username}/home.nix")];
+            };
+        };
+
+        homes = recImportDirs {
+            dir = root + "/users";
+            _import = config;
+        };
+    in homes;
 }

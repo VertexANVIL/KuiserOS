@@ -51,6 +51,7 @@ in rec {
     inherit (generators) genPkgs genPackagesOutput mkProfileAttrs mkVersion mkInputStorePath
         mkColmenaHiveNodes mkRootRepo mkRepo;
     inherit (misc) optionalPath optionalPathImport isIPv6 tryEval';
+    inherit (modules) systemGlobal;
 
     inherit (objects.addrs) addrOpts addrToString addrToOpts addrsToOpts;
 } // extender) {}
