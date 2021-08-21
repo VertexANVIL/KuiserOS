@@ -3,14 +3,27 @@ import json
 import icmplib
 import subprocess
 from pathlib import Path
-from typing import List, Set, Mapping, Any
+from ipaddress import IPv6Address
+from typing import List, Set, Mapping
 
 from kuiseros.utils import logger
 from kuiseros.machine import Machine, LivenessStat
-from kuiseros.handlers.base import BaseHandler
 from kuiseros.handlers.vault import VaultHandler
 
 HANDLER_CLASSES = [VaultHandler]
+
+
+def _is_host_wsl() -> bool:
+    """
+    Whether the host machine is running under WSL
+    """
+    with open("/proc/version", "r") as f:
+        version = f.read()
+    if "microsoft-standard-WSL2" in version:
+        return True
+    return False
+
+IS_HOST_WSL = _is_host_wsl()
 
 
 class DeploymentUnit:
@@ -87,7 +100,11 @@ class DeploymentUnit:
         if self._reachability:
             return self._reachability
 
-        addrs = [[v.id, v.ip] for v in self.machines.values() if v.ip]
+        addrs = [
+            [v.id, v.ip] for v in self.machines.values()
+            if v.ip and (isinstance(v.ip, IPv6Address) and not IS_HOST_WSL)
+        ]
+
         hosts: List[icmplib.Host] = icmplib.multiping(
             [v[1] for v in addrs], count=1, timeout=1, privileged=False
         )
