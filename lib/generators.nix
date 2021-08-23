@@ -120,7 +120,7 @@ in rec {
     let profiles = mkProfileAttrs ./profiles; in
     assert profiles ? core.default; 0
     **/
-    mkProfileAttrs = { dir, root ? dir, suffix ? "" }: let
+    mkProfileAttrs = { dir, root ? dir, suffix ? "/default.nix" }: let
         imports = let
             files = readDir dir;
             p = n: v: v == "directory" && !(elem n [ "modules" "profiles" ]);
@@ -358,7 +358,7 @@ in rec {
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit name nodes unstable;
+            inherit name nodes unstable; host = name;
             lib = nixosLib { inherit inputs pkgs; };
         };
 
@@ -376,6 +376,7 @@ in rec {
                         # add our unstable package set
                         inherit unstable;
 
+                        host = name;
                         lib = nixosLibHm { inherit inputs pkgs; };
                     };
                 })
@@ -473,7 +474,7 @@ in rec {
             extraModules = extern.home.modules ++ (attrValues home.modules);
             extraSpecialArgs = extern.home.specialArgs // {
                 # FIXME: impure because we need to support this for WSL
-                name = removeSuffix "\n" (readFile /etc/hostname);
+                host = removeSuffix "\n" (readFile /etc/hostname);
 
                 # add our unstable package set
                 inherit unstable;
