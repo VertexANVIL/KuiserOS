@@ -106,7 +106,7 @@ class DeploymentUnit:
         ]
 
         hosts: List[icmplib.Host] = icmplib.multiping(
-            [v[1] for v in addrs], count=1, timeout=1, privileged=False
+            [str(v[1]) for v in addrs], count=1, timeout=1, privileged=False
         )
 
         results = {v.id: LivenessStat() for v in self.machines.values()}
