@@ -4,6 +4,7 @@ final: prev: {
     hubble = prev.callPackage ./applications/networking/hubble { };
     clusterctl = prev.callPackage ./applications/networking/cluster/clusterctl { };
     talosctl = prev.callPackage ./applications/networking/cluster/talosctl { };
+    vcluster = prev.callPackage ./applications/networking/cluster/vcluster { };
     kata-images = prev.callPackage ./applications/virtualization/kata-images { };
     kata-runtime = prev.callPackage ./applications/virtualization/kata-runtime { };
 
