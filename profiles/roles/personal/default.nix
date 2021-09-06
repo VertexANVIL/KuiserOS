@@ -40,6 +40,9 @@ in mkProfile {
         fwupd.enable = true;
         udisks2.enable = true;
         earlyoom.enable = true;
+
+        # Required even if using KDE
+        gnome.gnome-keyring.enable = true;
     };
 
     security = {
