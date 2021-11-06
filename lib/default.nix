@@ -1,7 +1,7 @@
 { baseInputs, ... }:
 let
     # Use unstable lib because some packages depend on it
-    nixLib = baseInputs.unstable.lib;
+    nixLib = baseInputs.nixpkgs.lib;
     inherit (nixLib) fix;
 in fix (self: { inputs ? {}, extender ? {} }@all: let
     # construct internal lib
