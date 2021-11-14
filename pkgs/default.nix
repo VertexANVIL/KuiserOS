@@ -20,6 +20,7 @@ final: prev: {
     calico-node = prev.callPackage ./tools/networking/calico/calico-node.nix { };
     calicoctl = prev.callPackage ./tools/networking/calico/calicoctl.nix { };
     inix-helper = import ./tools/package-management/inix-helper { inherit final prev; };
+    velero = prev.callPackage ./tools/backup/velero { };
 
     # python
     # python3 = prev.python3.override {
