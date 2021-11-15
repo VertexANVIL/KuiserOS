@@ -1,19 +1,23 @@
-{ lib, buildGoModule, fetchFromGitHub }:
+{ lib, stdenv, fetchurl }:
 
-buildGoModule rec {
+stdenv.mkDerivation rec {
     pname = "talosctl";
-    version = "0.11.3";
+    version = "0.13.2";
 
-    src = fetchFromGitHub {
-        owner = "talos-systems";
-        repo = "talos";
-        rev = "v${version}";
-        sha256 = "sha256-oqcCAlaUnD5KOGnWBClUh/Z7NHt3YjXsNTkZsq+jWDY=";
+    src = fetchurl {
+        url = "https://github.com/talos-systems/talos/releases/download/v${version}/talosctl-linux-amd64";
+        sha256 = "sha256-5dWVpcqTgTLJM564Zy3HKJW6coHVdxHcSHzm0+1CuGo=";
     };
 
-    vendorSha256 = "sha256-s+takXwg2ww3CGL1DboguMiBmzBuULhFv8OGpliFFyM=";
+    dontUnpack = true;
+    dontConfigure = true;
+    dontBuild = true;
 
-    subPackages = [ "cmd/talosctl" ];
+    installPhase = ''
+        mkdir -p $out/bin
+        cp ${src} $out/bin/talosctl
+        chmod a+x $out/bin/talosctl
+    '';
 
     meta = with lib; {
         description = "Talos is a modern OS for Kubernetes.";
