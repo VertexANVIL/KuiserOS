@@ -30,9 +30,9 @@ zfs create -o mountpoint=legacy rpool/local
 zfs create rpool/local/root
 zfs create rpool/local/nix
 zfs create rpool/local/docker
-zfs create -o mountpoint=legacy -o com.sun:auto-snapshot=true rpool/safe
-zfs create -o compression=lz4 rpool/safe/home
-zfs create rpool/safe/persist
+zfs create -o mountpoint=legacy rpool/safe
+zfs create -o compression=lz4 -o com.sun:auto-snapshot=true rpool/safe/home
+zfs create -o com.sun:auto-snapshot=true rpool/safe/persist
 zfs snapshot rpool/local/root@blank
 ```
 
