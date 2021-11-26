@@ -9,6 +9,7 @@ final: prev: {
     kata-runtime = prev.callPackage ./applications/virtualization/kata-runtime { };
 
     # development
+    codesafe = prev.callPackage ./development/libraries/codesafe { };
     qvtf = prev.callPackage ./development/libraries/qvtf { };
     vtflib = prev.callPackage ./development/libraries/vtflib { };
     #nodePackagesCustom = import ./development/node-packages { pkgs = final; };
