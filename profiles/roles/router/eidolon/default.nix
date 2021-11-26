@@ -2,13 +2,9 @@
 
 # Base configuration for routers that are part of the Eidolon Routing Infrastructure System (RIS)
 {
-    boot = {
-        loader.grub = {
-            enable = true;
-            version = 2;
-        };
-
-        kernelPackages = pkgs.linuxPackages_5_12;
+    boot.loader.grub = {
+        enable = true;
+        version = 2;
     };
 
     networking = {
