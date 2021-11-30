@@ -9,6 +9,7 @@
     libSM,
     libpng12,
     ncurses5,
+    pcsclite,
     freetype,
     libXxf86vm,
     libXScrnSaver
@@ -32,6 +33,7 @@ stdenv.mkDerivation rec {
         libSM
         libpng12
         ncurses5
+        pcsclite
         freetype
         libXxf86vm
         libXScrnSaver
