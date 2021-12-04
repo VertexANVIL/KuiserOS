@@ -11,6 +11,7 @@ final: prev: {
     # development
     codesafe = prev.callPackage ./development/libraries/codesafe { };
     qvtf = prev.callPackage ./development/libraries/qvtf { };
+    secworld = prev.callPackage ./development/libraries/secworld { };
     vtflib = prev.callPackage ./development/libraries/vtflib { };
     #nodePackagesCustom = import ./development/node-packages { pkgs = final; };
 

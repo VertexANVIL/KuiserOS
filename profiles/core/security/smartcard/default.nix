@@ -1,7 +1,11 @@
 { config, lib, pkgs, ... }:
 {
     services = {
-        pcscd.enable = true;
+        pcscd = {
+            enable = true;
+            plugins = with pkgs; [ ccid acsccid ];
+        };
+
         udev.packages = with pkgs; [
             yubikey-personalization
             libu2f-host
