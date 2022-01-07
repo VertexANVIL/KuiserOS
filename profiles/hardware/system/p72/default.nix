@@ -11,7 +11,7 @@ in mkProfile {
     requires.profiles = [
         "hardware/capabilities/fingerprint"
         "hardware/capabilities/graphics/nvidia"
-        #"hardware/capabilities/graphics/nvidia/prime"
+        "hardware/capabilities/graphics/nvidia/prime"
     ];
 
     # thunderbolt support
