@@ -1203,6 +1203,7 @@ in
                 linkDir nethsm-firmware
                 linkDir openssl
                 linkDir python
+                linkDir python3
                 linkDir sbin
                 linkDir scripts
                 linkDir share
