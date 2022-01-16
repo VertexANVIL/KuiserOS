@@ -51,17 +51,22 @@ in mkProfile {
         doas.enable = false;
     };
 
-    networking.networkmanager = {
-        enable = true;
+    networking = {
+        # required for WireGuard to work
+        firewall.checkReversePath = false;
 
-        # stable randomised MAC address that resets at boot
-        # wifi.macAddress = "stable";
-        # ethernet.macAddress = "stable";
+        networkmanager = {
+            enable = true;
 
-        # extraConfig = ''
-        #     [connection]
-        #     connection.stable-id=''${CONNECTION}/''${BOOT}
-        # '';
+            # stable randomised MAC address that resets at boot
+            # wifi.macAddress = "stable";
+            # ethernet.macAddress = "stable";
+
+            # extraConfig = ''
+            #     [connection]
+            #     connection.stable-id=''${CONNECTION}/''${BOOT}
+            # '';
+        };
     };
 
     # add our custom fonts

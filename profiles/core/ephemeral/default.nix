@@ -13,6 +13,7 @@
             "/var/lib/systemd/coredump"
             "/var/lib/tpm"
             "/etc/NetworkManager/system-connections"
+            "/etc/wireguard"
         ];
 
         files = [

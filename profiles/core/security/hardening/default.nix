@@ -9,6 +9,11 @@ in {
         trustedUsers = [ "root" "@wheel" ];
     };
 
+    # Enable strict reverse path filtering (that is, do not attempt to route
+    # packets that "obviously" do not belong to the iface's network; dropped
+    # packets are logged as martians).
+    networking.firewall.checkReversePath = true;
+
     # perf test this later to see if it's viable
     # environment = {
     #     memoryAllocator.provider = "scudo";
@@ -36,14 +41,6 @@ in {
 
             # Disable ftrace by default, restricting kernel debugging
             "kernel.ftrace_enabled" = mkDefault false;
-
-            # Enable strict reverse path filtering (that is, do not attempt to route
-            # packets that "obviously" do not belong to the iface's network; dropped
-            # packets are logged as martians).
-            "net.ipv4.conf.all.log_martians" = true;
-            "net.ipv4.conf.all.rp_filter" = mkDefault 1;
-            "net.ipv4.conf.default.log_martians" = true;
-            "net.ipv4.conf.default.rp_filter" = mkDefault 1;
 
             # Ignore broadcast ICMP (mitigate SMURF)
             "net.ipv4.icmp_echo_ignore_broadcasts" = true;
