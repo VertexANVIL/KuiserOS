@@ -12,7 +12,7 @@ in {
     # Enable strict reverse path filtering (that is, do not attempt to route
     # packets that "obviously" do not belong to the iface's network; dropped
     # packets are logged as martians).
-    networking.firewall.checkReversePath = true;
+    networking.firewall.checkReversePath = mkDefault true;
 
     # perf test this later to see if it's viable
     # environment = {
