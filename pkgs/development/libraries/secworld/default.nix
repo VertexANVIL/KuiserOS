@@ -3,6 +3,7 @@
     stdenv,
     fetchzip,
     autoPatchelfHook,
+    makeWrapper,
 
     # other stuff
     db4,
@@ -29,6 +30,7 @@ stdenv.mkDerivation rec {
 
     nativeBuildInputs = [
         autoPatchelfHook
+        makeWrapper
     ];
 
     buildInputs = [
@@ -38,7 +40,6 @@ stdenv.mkDerivation rec {
         libpng12
         sqlite
         ncurses5
-        pcsclite
         freetype
         readline
         libXxf86vm
@@ -60,6 +61,12 @@ stdenv.mkDerivation rec {
         tar xf $src/linux/amd64/ctd.tar.gz
         tar xf $src/linux/amd64/javasp.tar.gz
         tar xf $src/linux/amd64/hwsp.tar.gz
+    '';
+
+    # both of these python programs dynamically load libpcsclite.so.1
+    postFixup = ''
+        wrapProgram $out/opt/nfast/bin/raccmd --set LD_LIBRARY_PATH "${pcsclite.out}/lib"
+        wrapProgram $out/opt/nfast/bin/racgui --set LD_LIBRARY_PATH "${pcsclite.out}/lib"
     '';
 
     meta = with lib; {
