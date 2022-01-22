@@ -210,7 +210,7 @@ let
         protocol static master_static_v4 {
             ipv4 {
                 table master4;
-                import filter master_imports_v4;
+                import filter master_static_imports_v4;
             };
             
             ${buildMasterExports cfg.ipv4 4}
@@ -219,7 +219,7 @@ let
         protocol static master_static_v6 {
             ipv6 {
                 table master6;
-                import filter master_imports_v6;
+                import filter master_static_imports_v6;
             };
             
             ${buildMasterExports cfg.ipv6 6}
@@ -237,13 +237,15 @@ let
 
         # Export our routes to the kernel
         protocol kernel kernel4 {
+            learn;
             persist;
             graceful restart;
             scan time 20;
 
             ipv4 {
                 table master4;
-                import none;
+
+                import filter master_kernel_imports_v4;
                 export filter {
                     if source = RTS_DEVICE then reject;
                     
@@ -260,13 +262,15 @@ let
         }
 
         protocol kernel kernel6 {
+            learn;
             persist;
             graceful restart;
             scan time 20;
 
             ipv6 {
                 table master6;
-                import none;
+
+                import filter master_kernel_imports_v6;
                 export filter {
                     if source = RTS_DEVICE then reject;
 

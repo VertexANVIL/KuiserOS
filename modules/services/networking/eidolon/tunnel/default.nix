@@ -110,13 +110,6 @@ let
                 inherit (provider) allowedIPs presharedKey publicKey;
                 endpoint = if (peer.endpoint != null) then "${peer.endpoint}:${toString port}" else null;
             }];
-
-            # add wireguard allowed IPs as IGP routes (subverts built-in route adding)
-            # discard any routes that are wildcards as these use OSPF
-            services.eidolon.router.ipv6.routes.igp = map (p:
-                #assert (assertMsg (p != "0.0.0.0/0" && p != "::/0") "cannot add a wildcard route to a tunnel");
-                (utils.parsePrefixRoute p) // { interface = peer.interface; }
-            ) (filter (p: p != "0.0.0.0/0" && p != "::/0") provider.allowedIPs);
         }
 
         # ==== GRE ====
