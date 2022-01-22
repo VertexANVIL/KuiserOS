@@ -55,6 +55,7 @@ let
         # map input to ini sections
         "syntax-version=1\n" + (mapAttrsToStringsSep "\n" mkSections filtered);
     
+    renderedCardList = concatStringsSep "\n" cfg.cardlist;
     renderedConfig = toNcipherINI cfg.config;
 in
 {
@@ -121,6 +122,21 @@ in
             type = types.bool;
             default = true;
             description = "Enable support for nShield Edge detection";
+        };
+
+        cardlist = mkOption {
+            description = ''
+                Remote Administration Ready smartcards that are allowed to be used.
+                Examples of valid 16 digit serial numbers:
+                    XXXXXXXX-XXXXXXXX
+                    XXXXXXXXXXXXXXXX
+                    XXXX-XXXX-XXXX-XXXX
+                To permit any cards presented to be used:
+                     *
+            '';
+
+            type = types.listOf types.str;
+            default = [];
         };
 
         config = mkOption {
@@ -1024,6 +1040,7 @@ in
                     NFAST_HOME = home;
                     NFAST_USER = cfg.hardserver.user;
                     NFAST_GROUP = cfg.hardserver.group;
+                    NFAST_CARDLIST_SOURCE = toString (pkgs.writeText "cardlist" renderedCardList);
                     NFAST_CONFIG_SOURCE = toString (pkgs.writeText "config" renderedConfig);
                 };
 

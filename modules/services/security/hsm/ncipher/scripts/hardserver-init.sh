@@ -67,10 +67,12 @@ function mkdir____rwx______ {
 }
 
 function render_config() {
+    CARDLIST="$NFAST_HOME/kmdata/config/cardlist"
     CONFIG="$NFAST_HOME/kmdata/config/config"
-    rm -rf "$CONFIG"
+    rm -rf "$CARDLIST" "$CONFIG"
+    cp "$NFAST_CARDLIST_SOURCE" "$CARDLIST"
     cp "$NFAST_CONFIG_SOURCE" "$CONFIG"
-    chmod 0644 "$CONFIG"
+    chmod 0644 "$CARDLIST" "$CONFIG"
 
     state_string=""
     state_file="/var/opt/nfast-edge-handler/devices"
