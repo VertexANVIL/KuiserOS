@@ -110,8 +110,15 @@ let
                 inherit (provider) allowedIPs presharedKey publicKey;
                 endpoint = if (peer.endpoint != null) then "${peer.endpoint}:${toString port}" else null;
             }];
+
+            # add wireguard allowed IPs as IGP routes (subverts built-in route adding)
+            # discard any routes that are wildcards as these use OSPF
+            services.eidolon.router.ipv6.routes.igp = map (p:
+                #assert (assertMsg (p != "0.0.0.0/0" && p != "::/0") "cannot add a wildcard route to a tunnel");
+                (utils.parsePrefixRoute p) // { interface = peer.interface; }
+            ) (filter (p: p != "0.0.0.0/0" && p != "::/0") provider.allowedIPs);
         }
-        
+
         # ==== GRE ====
         # this is the fallback
         else
@@ -161,14 +168,18 @@ in {
             };
         }];
 
-        services.eidolon.firewall.input = ''
-            # allow GRE on the tunnel interface
-            ${if (length cfg.peers) == 0 then "" else "ip46tables -A eidolon-fw -i ${eidolon.underlay} -p gre -j ACCEPT"}
+        services = {
+            eidolon.router.ipv6.routes = mkMerge [(mkConfOpt ["services" "eidolon" "router" "ipv6" "routes"] {})];
 
-            # allow OSPF from tunnel peer interfaces
-            ${concatStrings (forEach resolved (peer: ''
-                ip46tables -A eidolon-fw -i ${peer.interface} -p ospfigp -j ACCEPT
-            ''))}
-        '';
+            eidolon.firewall.input = ''
+                # allow GRE on the tunnel interface
+                ${if (length cfg.peers) == 0 then "" else "ip46tables -A eidolon-fw -i ${eidolon.underlay} -p gre -j ACCEPT"}
+
+                # allow OSPF from tunnel peer interfaces
+                ${concatStrings (forEach resolved (peer: ''
+                    ip46tables -A eidolon-fw -i ${peer.interface} -p ospfigp -j ACCEPT
+                ''))}
+            '';
+        };
     };
 }
