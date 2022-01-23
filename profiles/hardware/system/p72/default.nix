@@ -18,5 +18,5 @@ in mkProfile {
     services.hardware.bolt.enable = true;
 
     # hardware video offload
-    environment.sessionVariables.LIBVA_DRIVER_NAME = "vdpau";
+    environment.sessionVariables.LIBVA_DRIVER_NAME = "iHD";
 }
