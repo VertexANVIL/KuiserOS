@@ -3,7 +3,7 @@
     services = {
         pcscd = {
             enable = true;
-            plugins = with pkgs; [ ccid acsccid ];
+            plugins = with pkgs; [ ccid acsccid pcsc-cyberjack ];
         };
 
         udev.packages = with pkgs; [

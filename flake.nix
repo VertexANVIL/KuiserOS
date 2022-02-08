@@ -3,12 +3,12 @@
 
     inputs = {
         # conventional nixos channels
-        nixos.url = "nixpkgs/release-21.05";
-        nixpkgs.url = "nixpkgs/release-21.05";
+        nixos.url = "nixpkgs/release-21.11";
+        nixpkgs.url = "nixpkgs/release-21.11";
         unstable.url = "github:ArctarusLimited/nixpkgs";
 
         # official flakes
-        nix.url = "github:ArctarusLimited/nix/master";
+        nix.url = "github:NixOS/nix/2.4";
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
         # community flakes
@@ -32,7 +32,7 @@
         colmena.url = "github:ArctarusLimited/colmena/feat/flake-support";
 
         home = {
-           url = "github:nix-community/home-manager/release-21.05";
+           url = "github:nix-community/home-manager/release-21.11";
            inputs.nixpkgs.follows = "nixpkgs";
         };
 

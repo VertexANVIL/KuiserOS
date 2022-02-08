@@ -1,6 +1,7 @@
 {
     # Same as below, but does this actually do anything??
     boot.kernelParams = [
+        "iwlwifi.11n_disable=4"
         "usbcore.quirks=17ef:3082:k"
     ];
 

@@ -1,7 +1,7 @@
 {
     virtualisation.libvirtd = {
         enable = true;
-        qemuRunAsRoot = false;
+        qemu.runAsRoot = false;
     };
 
     # IP forwarding is required for libvirt's NAT

@@ -1,14 +1,13 @@
 { pkgs, ... }:
 {
-    services.xserver.displayManager.gdm.wayland = true;
-
-    xdg.portal.extraPortals = with pkgs; [
-        xdg-desktop-portal-wlr
-    ];
-
-    environment.sessionVariables = {
-        MOZ_ENABLE_WAYLAND = "1";
-        QT_QPA_PLATFORM = "wayland";
-        XDG_SESSION_TYPE = "wayland";
+    services.xserver.displayManager = {
+        sddm.settings.Wayland.SessionDir = "${pkgs.plasma5Packages.plasma-workspace}/share/wayland-sessions";
+        #gdm.wayland = true;
     };
+
+    xdg.portal.wlr.enable = true;
+
+    #environment.sessionVariables = {
+    #   QT_QPA_PLATFORM = "wayland";
+    #};
 }

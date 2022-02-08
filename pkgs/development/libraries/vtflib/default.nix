@@ -15,7 +15,7 @@ stdenv.mkDerivation rec {
         rev = version;
         owner = "panzi";
         repo = "vtflib";
-        sha256 = "sha256-+3KkC8p57lIsFZrIbKrF/64gGMeY90Imx8itIhVR0zQ=";
+        sha256 = "sha256-byWqe+INjwD3AXW/Bz8jfk3+aWnnJ7PIfyNF3QUBl1g=";
     };
 
     buildInputs = [

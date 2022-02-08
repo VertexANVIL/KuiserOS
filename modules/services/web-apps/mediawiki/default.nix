@@ -3,7 +3,7 @@
 let
 
   inherit (lib) mkDefault mkEnableOption mkForce mkIf mkMerge mkOption;
-  inherit (lib) concatStringsSep literalExample mapAttrsToList optional optionals optionalString types;
+  inherit (lib) concatStringsSep mapAttrsToList optional optionals optionalString types;
 
   cfg = config.services.mediawiki-nginx;
   fpm = config.services.phpfpm.pools.mediawiki;
