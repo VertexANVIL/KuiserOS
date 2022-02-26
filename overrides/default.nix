@@ -1,6 +1,5 @@
 {
     modules = [
-        "security/sgx.nix"
         "security/vault/keys.nix"
         "services/hardware/hp-ams.nix"
         "services/networking/firewall.nix"
@@ -23,7 +22,6 @@
         inherit manix nixos-option;
 
         # previously upstreamed
-        inherit juju enigma openenclave-sgx fort-validator hp-ams
-            intel-sgx-sdk intel-sgx-psw intel-sgx-dcap intel-sgx-sgx1 vault-token-helper;
+        inherit juju enigma fort-validator hp-ams vault-token-helper;
     })];
 }
