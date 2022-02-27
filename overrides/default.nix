@@ -19,7 +19,7 @@
 
     packages = [(pkgs: final: prev: with pkgs; {
         # packages pulled from upstream
-        inherit manix nixos-option;
+        inherit bird2 manix nixos-option;
 
         # previously upstreamed
         inherit juju enigma fort-validator hp-ams vault-token-helper;

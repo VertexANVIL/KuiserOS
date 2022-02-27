@@ -328,5 +328,8 @@ in {
 
         services.bird2.enable = true;
         services.bird2.config = birdConf;
+
+        # hack because the maintainers broke the fucking package
+        systemd.services.bird2.serviceConfig.RuntimeDirectory = "bird";
     };
 }
