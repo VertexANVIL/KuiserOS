@@ -3,8 +3,7 @@
 
     inputs = {
         # conventional nixos channels
-        nixos.url = "nixpkgs/release-21.11";
-        nixpkgs.url = "nixpkgs/release-21.11";
+        nixpkgs.url = "nixpkgs/nixos-21.11";
         unstable.url = "github:ArctarusLimited/nixpkgs";
 
         # official flakes

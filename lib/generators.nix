@@ -6,11 +6,11 @@ let
         recursiveUpdate substring optional removePrefix removeSuffix nameValuePair makeExtensible makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
     inherit (lib.kuiser) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
         optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
-    inherit (baseInputs) nixos unstable flake-utils;
+    inherit (baseInputs) nixpkgs unstable flake-utils;
 in rec {
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
-    genPkgs = { root, inputs, base ? nixos }: let
+    genPkgs = { root, inputs, base ? nixpkgs }: let
         inherit (inputs) self;
         inherit (self._internal) extern overrides;
         inherit (flake-utils.lib) eachDefaultSystem;
@@ -41,7 +41,7 @@ in rec {
     genPkgSets = { root, inputs }@all: let
         mkSet = base: genPkgs (all // { inherit base; });
     in {
-        nixos = mkSet nixos;
+        nixpkgs = mkSet nixpkgs;
         unstable = mkSet unstable;
     };
 
@@ -202,7 +202,7 @@ in rec {
                 inherit (self._internal) users profiles;
 
                 system = "x86_64-linux";
-                pkgs = pkgSets.nixos.${system};
+                pkgs = pkgSets.nixpkgs.${system};
 
                 attrs = optionalPath (root + "/templates") (p: import p {
                     lib = nixosLib { inherit inputs pkgs; };
@@ -239,7 +239,7 @@ in rec {
         # Generate per-system outputs
         # i.e. x86_64-linux, aarch64-linux
         systemOutputs = let
-            mkEachSystem = f: eachDefaultSystem (system: f system pkgSets.nixos.${system});
+            mkEachSystem = f: eachDefaultSystem (system: f system pkgSets.nixpkgs.${system});
         in (mkEachSystem (system: pkgs: {
             devShell = let
                 # current repo's working dir is added; parent repos are added as store paths
@@ -347,10 +347,10 @@ in rec {
         pkgSets, # The compiled package sets
     }: let
         inherit (inputs) self;
-        inherit (nixos.lib) nixosSystem;
+        inherit (nixpkgs.lib) nixosSystem;
         inherit (self._internal) extern home overrides profiles users;
 
-        pkgs = pkgSets.nixos.${system};
+        pkgs = pkgSets.nixpkgs.${system};
         unstable = pkgSets.unstable.${system};
     in makeOverridable nixosSystem {
         inherit system;
@@ -463,7 +463,7 @@ in rec {
         inherit (self._internal) extern home;
         inherit (inputs.home.lib) homeManagerConfiguration;
 
-        pkgs = pkgSets.nixos.${system};
+        pkgs = pkgSets.nixpkgs.${system};
 
         config = username: let
         in homeManagerConfiguration {
