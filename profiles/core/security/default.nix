@@ -5,7 +5,6 @@ in mkProfile {
         "core/security/certs"
         "core/security/doas"
         "core/security/hardening"
-        "core/security/pam"
     ];
 
     users = {
