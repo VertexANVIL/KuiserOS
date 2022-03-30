@@ -39,9 +39,6 @@
 
         # Enable pipewire
         pipewire.enable = true;
-
-        # Use graphical usbguard package
-        usbguard.package = pkgs.usbguard;
     };
 
     # Also forces Chromium to rebuild which we don't want

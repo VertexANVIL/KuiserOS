@@ -77,15 +77,12 @@
             ACTION=="add|change", SUBSYSTEM=="spi", ENV{MODALIAS}=="acpi:SYNA8002:", PROGRAM+="${script} %S%p %k"
         '';
 
-        usbguard = {
-            enable = true;
-            rules = ''
-                allow id 17ef:60b5 name "ThinkPad X1 Tablet Thin Keyboard Gen 3" with-connect-type "hotplug"
-                allow id 1199:9079 name "Sierra Wireless EM7455 Qualcomm\xc2\xae Snapdragon\xe2\x84\xa2 X7 LTE-A" with-connect-type "hardwired"
-                allow id 04ca:706b name "Integrated Camera" with-connect-type "hardwired"
-                allow id 8087:0a2b with-connect-type "hardwired"
-            '';
-        };
+        usbguard.rules = ''
+            allow id 17ef:60b5 name "ThinkPad X1 Tablet Thin Keyboard Gen 3" with-connect-type "hotplug"
+            allow id 1199:9079 name "Sierra Wireless EM7455 Qualcomm\xc2\xae Snapdragon\xe2\x84\xa2 X7 LTE-A" with-connect-type "hardwired"
+            allow id 04ca:706b name "Integrated Camera" with-connect-type "hardwired"
+            allow id 8087:0a2b with-connect-type "hardwired"
+        '';
 
         hardware.bolt.enable = true;
     };

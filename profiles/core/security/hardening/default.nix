@@ -77,14 +77,5 @@ in {
     services = {
         # enable dbus apparmor
         dbus.apparmor = "enabled";
-
-        usbguard = {
-            # enabled on a per-device basis
-            enable = mkDefault false;
-            package = mkDefault pkgs.usbguard-nox;
-            rules = builtins.readFile ./usbguard.conf;
-
-            IPCAllowedGroups = [ "wheel" ];
-        };
     };
 }
