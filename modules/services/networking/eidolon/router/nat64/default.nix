@@ -57,10 +57,5 @@ in {
             ipv4.routes.igp = [ (cfg.ipv4.pool // { interface = "nat64"; }) ];
             ipv6.routes.igp = [ (cfg.ipv6.pool // { interface = "nat64"; }) ];
         };
-
-        # add a NAT44 rule to nat the IPs in the pool to the public IP of the router
-        networking.nat.extraCommands = ''
-            iptables -t nat -A nixos-nat-post -s ${utils.addrToString cfg.ipv4.pool} -j SNAT --to-source ${router.ipv4.addrs.primary.address}
-        '';
     };
 }
