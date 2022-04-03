@@ -175,9 +175,30 @@ let
 
         ### Definitions ###
         define OWN_AS = ${toString cfg.asn};
-        define OWN_NET_SET = ${buildNetworkSet cfg.ipv4.networks 4};
-        define OWN_NET_SET_V6 = ${buildNetworkSet cfg.ipv6.networks 6};
         define RPKI_SERVER = 127.0.0.1;
+
+        # BIRD doesn't like declaring empty sets, so we need to do this bullshit...
+        ${if (length cfg.ipv4.networks) > 0 then ''
+            define OWN_NET_SET = ${buildNetworkSet cfg.ipv4.networks 4};
+            function is_v4_self() {
+                return net ~ OWN_NET_SET;
+            }
+        '' else ''
+            function is_v4_self() {
+                return false;
+            }
+        ''}
+
+        ${if (length cfg.ipv6.networks) > 0 then ''
+            define OWN_NET_SET_V6 = ${buildNetworkSet cfg.ipv6.networks 6};
+            function is_v6_self() {
+                return net ~ OWN_NET_SET_V6;
+            }
+        '' else ''
+            function is_v6_self() {
+                return false;
+            }
+        ''}
 
         ${builtins.readFile ./martians.conf}
 
