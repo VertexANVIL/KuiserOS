@@ -3,9 +3,9 @@ let
     inherit (builtins) attrNames attrValues elem readDir readFile mapAttrs pathExists;
     
     inherit (lib) fix fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' mapAttrsToList splitString concatStrings
-        recursiveUpdate substring optional removePrefix removeSuffix nameValuePair makeExtensible makeOverridable hasAttr hasAttrByPath attrByPath assertMsg;
-    inherit (lib.kuiser) pkgImport genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames
-        optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
+        recursiveUpdate substring optional removePrefix removeSuffix nameValuePair makeExtensible makeOverridable hasAttr hasAttrByPath attrByPath assertMsg
+        genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
+    inherit (lib.kuiser) pkgImport;
     inherit (baseInputs) nixpkgs unstable flake-utils;
 in rec {
     # Generates packages for every possible system

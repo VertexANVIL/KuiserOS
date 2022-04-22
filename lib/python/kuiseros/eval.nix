@@ -1,6 +1,5 @@
 { lib, nodes }: let
-    inherit (lib) filterAttrs mapAttrs unique;
-    inherit (lib.kuiser) tryEval';
+    inherit (lib) filterAttrs mapAttrs unique tryEval';
     inherit (builtins) isAttrs isFunction removeAttrs;
 in
     (mapAttrs (n: v: let

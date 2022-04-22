@@ -1,8 +1,8 @@
 { lib, ... }:
 let
     inherit (builtins) readFile readDir;
-    inherit (lib) hasSuffix removeSuffix nameValuePair;
-    inherit (lib.kuiser) mapFilterAttrs;
+    inherit (lib) hasSuffix removeSuffix
+        nameValuePair mapFilterAttrs;
 
     certPath = ./../profiles/core/security/certs;
 in  mapFilterAttrs (_: v: v != null) (n: v:
