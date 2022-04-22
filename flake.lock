@@ -422,7 +422,8 @@
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_4",
         "nur": "nur",
-        "unstable": "unstable"
+        "unstable": "unstable",
+        "xnlib": "xnlib"
       }
     },
     "unstable": {
@@ -452,6 +453,26 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "xnlib": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1650637229,
+        "narHash": "sha256-sifLZ1vDKLBjkhIygrxSJ9o8qxyjnxQA4nLrGbGJD5U=",
+        "owner": "ArctarusLimited",
+        "repo": "xnlib",
+        "rev": "d9a50c1e38411285a5cf15d4ccbd0a72815d6fb6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ArctarusLimited",
+        "repo": "xnlib",
         "type": "github"
       }
     }

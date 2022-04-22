@@ -10,6 +10,12 @@
         nix.url = "github:NixOS/nix/2.4";
         nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
+        # our flakes
+        xnlib = {
+            url = "github:ArctarusLimited/xnlib";
+            inputs.nixpkgs.follows = "nixpkgs";
+        };
+
         # community flakes
         nur.url = "github:nix-community/NUR";
         nixlib.url = "github:nix-community/nixpkgs.lib";
