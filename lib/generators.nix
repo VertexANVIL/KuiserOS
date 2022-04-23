@@ -4,7 +4,7 @@ let
     
     inherit (lib) fix fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' mapAttrsToList splitString concatStrings
         recursiveUpdate substring optional removePrefix removeSuffix nameValuePair makeExtensible makeOverridable hasAttr hasAttrByPath attrByPath assertMsg
-        genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames optionalPath optionalPathImport pathsToImportedAttrs recImportDirs;
+        genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames optionalPath optionalPathImport pathsToImportedAttrs recImportDirs mkProfileAttrs;
     inherit (lib.kuiser) pkgImport;
     inherit (baseInputs) nixpkgs unstable flake-utils;
 in rec {
@@ -110,33 +110,6 @@ in rec {
     in (lib.extend (self: super: {
         hm = (import (inputs.home + "/modules/lib")) { lib = super; };
     }));
-
-    /**
-    Synopsis: mkProfileAttrs _path_
-
-    Recursively import the subdirs of _path_ containing a default.nix.
-
-    Example:
-    let profiles = mkProfileAttrs ./profiles; in
-    assert profiles ? core.default; 0
-    **/
-    mkProfileAttrs = { dir, root ? dir, suffix ? "/default.nix" }: let
-        imports = let
-            files = readDir dir;
-            p = n: v: v == "directory" && !(elem n [ "modules" "profiles" ]);
-        in filterAttrs p files;
-
-        f = n: _: let
-            path = "${dir}/${n}";
-            full = "${path}${suffix}";
-        in optionalAttrs (pathExists full) {
-            _name = removePrefix "${toString root}/" (toString path);
-            defaults = [ full ];
-        } // mkProfileAttrs {
-            dir = path;
-            inherit root suffix;
-        };
-    in mapAttrs f imports;
 
     # Constructs a semantic version string from a derivation
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";

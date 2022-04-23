@@ -35,14 +35,14 @@ in rec {
     });
 
     inherit (importers) pkgImport;
-    inherit (generators) genPkgs genPackagesOutput mkProfileAttrs mkVersion mkInputStorePath
+    inherit (generators) genPkgs genPackagesOutput mkVersion mkInputStorePath
         mkColmenaHiveNodes mkRootRepo mkRepo;
     inherit (modules) systemGlobal;
 
     # backwards compat (stuff was moved to the xnlib flake)
     inherit (nixLib) mapFilterAttrs genAttrs' attrCount defaultAttrs defaultSetAttrs
         imapAttrsToList recursiveMerge recursiveMergeAttrsWithNames recursiveMergeAttrsWith filterListNonEmpty
-        pathsToImportedAttrs recImportFiles recImportDirs nixFilesIn
+        mkProfileAttrs pathsToImportedAttrs recImportFiles recImportDirs nixFilesIn
         optionalPath optionalPathImport isIPv6 tryEval'
         addrOpts addrToString addrToOpts addrsToOpts;
 } // extender) {}
