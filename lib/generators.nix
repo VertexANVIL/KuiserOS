@@ -155,7 +155,7 @@ in rec {
 
         outputs = {
             # shared library functions
-            lib = lib.kuiser;
+            inherit lib;
 
             # this represents the packages we provide
             overlays = overlayAttrs // (genAttrs (attrNames (overlay null null)) (name: (
