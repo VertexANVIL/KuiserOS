@@ -463,11 +463,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1650725706,
-        "narHash": "sha256-6pD3JjsssFXXYvotPV83Pm0F85vas4yA3F/wuVw1AXo=",
+        "lastModified": 1650738536,
+        "narHash": "sha256-Nz8Qyf/g/T6r1kIROjf/tIV+ITni8OdhrYCmTmL5sBg=",
         "owner": "ArctarusLimited",
         "repo": "xnlib",
-        "rev": "a049cbbbf1ad1d0208a5a5e1241682935f4b864e",
+        "rev": "77758f3ee0426a3fc14dc62e42d80db81d91a84c",
         "type": "github"
       },
       "original": {
