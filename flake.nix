@@ -51,5 +51,9 @@
         lib = import ./lib {
             baseInputs = inputs;
         };
-    in (lib.mkRootRepo { inputs = inputs // { inherit lib; }; });
+
+        inherit (lib.kuiser) mkRootRepo;
+    in mkRootRepo {
+        inputs = inputs // { inherit lib; };
+    };
 }

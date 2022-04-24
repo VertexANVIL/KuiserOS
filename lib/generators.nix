@@ -99,7 +99,7 @@ in rec {
             });
         };
 
-        overridden = lib.kuiser.override { inherit pkgs; };
+        overridden = lib.override { inherit pkgs; };
     in lib.extend (self: super: {
         kuiser = overridden.extend attrs;
     });
