@@ -15,9 +15,6 @@ in rec {
         inherit (self._internal) extern overrides;
         inherit (flake-utils.lib) eachDefaultSystem;
 
-        # create a version of lib with our generated packages and inject it
-        derivedLib = system: lib.kuiser.override { pkgs = pkgs.${system}; };
-
         pkgs = (eachDefaultSystem (system:
             let
                 overridePkgs = pkgImport unstable [ ] system overrides.unfree;
@@ -25,11 +22,6 @@ in rec {
                 ++ [(final: prev: {
                     # add in our sources
                     srcs = inputs.srcs.inputs;
-
-                    # extend the "lib" namespace
-                    lib = (prev.lib or { }) // {
-                        kuiser = derivedLib system;
-                    };
                 })]
                 ++ extern.overlays
                 ++ (attrValues self.overlays);
@@ -98,18 +90,14 @@ in rec {
                 };
             });
         };
-
-        overridden = lib.override { inherit pkgs; };
     in lib.extend (self: super: {
-        kuiser = overridden.extend attrs;
+        kuiser = super.kuiser // attrs;
     });
 
     # extend the `lib` namespace with home-manager's `hm`
     nixosLibHm = { inputs, pkgs }: let
         lib = nixosLib { inherit inputs pkgs; home = true; };
-    in (lib.extend (self: super: {
-        hm = (import (inputs.home + "/modules/lib")) { lib = super; };
-    }));
+    in import (inputs.home + "/modules/lib/stdlib-extended.nix") lib;
 
     # Constructs a semantic version string from a derivation
     mkVersion = src: "${substring 0 8 src.lastModifiedDate}_${src.shortRev}";
@@ -344,13 +332,11 @@ in rec {
                 (hmDefaults {
                     sharedModules = extern.home.modules ++ (attrValues home.modules);
                     extraSpecialArgs = let
-                        lib = nixosLib { inherit inputs pkgs; home = true; };
+                        lib = nixosLibHm { inherit inputs pkgs; };
                     in extern.home.specialArgs // {
                         # add our unstable package set
-                        inherit unstable;
-
+                        inherit lib unstable;
                         host = name;
-                        lib = nixosLibHm { inherit inputs pkgs; };
                     };
                 })
             ];
@@ -440,7 +426,7 @@ in rec {
 
         config = username: let
         in homeManagerConfiguration {
-            inherit system username pkgs;
+            inherit pkgs system username;
             homeDirectory = "/home/${username}";
 
             # TODO: deduplicate these?
@@ -450,7 +436,7 @@ in rec {
                 host = removeSuffix "\n" (readFile /etc/hostname);
 
                 # add our unstable package set
-                inherit unstable;
+                unstable = pkgSets.unstable.${system};
 
                 lib = nixosLibHm { inherit inputs pkgs; };
             };

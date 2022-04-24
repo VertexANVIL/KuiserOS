@@ -2,12 +2,13 @@
 let
     # Use unstable lib because some packages depend on it
     base = baseInputs.xnlib.lib;
-    inherit (base) mkExtensibleLibrary;
-in mkExtensibleLibrary base ({ self, importer }: let
-    f = importer {
+    inherit (base) fix recursiveUpdate;
+in fix (self: base.extend (_: super: let
+    f = path: import path {
+        lib = self;
         inherit baseInputs;
     };
-in {
+in recursiveUpdate super {
     kuiser = rec {
         importers = f ./importers.nix;
         generators = f ./generators.nix;
@@ -28,4 +29,4 @@ in {
             optionalPath optionalPathImport isIPv6 tryEval'
             addrOpts addrToString addrToOpts addrsToOpts;
     };
-})
+}))
