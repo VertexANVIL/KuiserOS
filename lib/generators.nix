@@ -10,7 +10,7 @@ let
 in rec {
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
-    genPkgs = { root, inputs, base ? nixpkgs }: let
+    genPkgs = { inputs, base ? nixpkgs }: let
         inherit (inputs) self;
         inherit (self._internal) extern overrides;
         inherit (flake-utils.lib) eachDefaultSystem;
@@ -30,8 +30,10 @@ in rec {
     in pkgs;
 
     # Generates package sets for every possible system
-    genPkgSets = { root, inputs }@all: let
-        mkSet = base: genPkgs (all // { inherit base; });
+    genPkgSets = inputs: let
+        mkSet = base: genPkgs {
+            inherit base inputs;
+        };
     in {
         nixpkgs = mkSet nixpkgs;
         unstable = mkSet unstable;
@@ -39,7 +41,7 @@ in rec {
 
     # Generates the "packages" flake output
     # overlay + overlays = packages
-    genPackagesOutput = root: inputs: pkgs: let
+    genPackagesOutput = inputs: pkgs: let
         inherit (inputs.self) overlays;
         
         # grab the package names from all our overlays
@@ -114,17 +116,18 @@ in rec {
     };
 
     # shared repo creation function
-    mkInternalRepo = all@{ name, root, inputs, ... }: let
+    mkBaseRepo = all@{ inputs, ... }: let
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
         inherit (inputs) self;
-        
-        pkgSets = genPkgSets { inherit root inputs; };
+
+        root = self.outPath;
+        pkgSets = genPkgSets inputs;
 
         # list of module paths -> i.e. security/sgx
         # too bad we cannot output actual recursive attribute sets :(
         moduleAttrs = paths: genAttrs' paths (path: {
-            name = removePrefix "${toString (root + "/modules")}/" (toString path);
+            name = removePrefix "${root}/modules/" (toString path);
             value = import path;
         });
 
@@ -177,8 +180,6 @@ in rec {
 
             # Internal outputs used only for passing to other KuiserOS repos
             _internal = rec {
-                inherit name;
-
                 roots = [ root ];
                 users = optionalPath (root + "/users") (p: mkProfileAttrs { dir = toString p; }) { };
                 profiles = optionalPath (root + "/profiles") (p: (mkProfileAttrs { dir = toString p; })) { };
@@ -213,13 +214,13 @@ in rec {
                     export PYTHONPATH="$PYTHONPATH${concatStrings (map (r: ":${r}/lib/python") allRoots)}"
 
                     # set our PS1 line
-                    export PS1_PREFIX='\[\033[35m\][operator shell [${self._internal.name}]]\[\033[0m\]'
+                    export PS1_PREFIX='\[\033[35m\][operator shell]\[\033[0m\]'
                     export PS1_PROMPT='\[\033[32m\]\w\[\033[0m\]> '
                     export PS1="$PS1_PREFIX $PS1_PROMPT"
                 '' + (if hasAttr "shellHook" shellAttrs then shellAttrs.shellHook else "");
             });
 
-            packages = flattenTreeSystem system (genPackagesOutput root inputs pkgs);
+            packages = flattenTreeSystem system (genPackagesOutput inputs pkgs);
         })) // {
             _internal = mkEachSystem (system: pkgs: {
                 # this lets children add stuff to the shell
@@ -228,16 +229,9 @@ in rec {
         };
     in recursiveUpdate outputs systemOutputs;
 
-    # Produces flake outputs for the root repository
-    mkRootRepo = all@{ inputs, ... }: mkInternalRepo (all // {
-        name = "root";
-        root = ./..;
-    });
-
     # Produces flake outputs for repositories
     mkRepo = all@{
         name,
-        root,
         parent,
         inputs,
         bases ? [],
@@ -252,11 +246,12 @@ in rec {
 
         inherit (colmena.lib.${system}) mkColmenaHive;
 
-        pkgSets = genPkgSets { inherit root inputs; };
+        root = self.outPath;
+        pkgSets = genPkgSets inputs;
 
         # build the repository
         repo = let
-            local = mkInternalRepo (all // { inputs = baseInputs // inputs; });
+            local = mkBaseRepo (all // { inputs = baseInputs // inputs; });
 
             # merge together the attrs we need from our parent
             shallowMerged = recursiveMergeAttrsWithNames
@@ -391,8 +386,6 @@ in rec {
         pkgSets,
     }: let
         config = name: let
-            inherit (inputs) self;
-
             # flat = hosts live in top-level rather than in "hosts" folder
             hostFile = root + (if flat then "/${name}" else "/hosts/${name}");
         in mkNixosSystem {

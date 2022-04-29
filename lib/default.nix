@@ -19,7 +19,7 @@ in recursiveUpdate super {
 
         inherit (importers) pkgImport;
         inherit (generators) genPkgs genPackagesOutput mkVersion mkInputStorePath
-            mkColmenaHiveNodes mkRootRepo mkRepo;
+            mkColmenaHiveNodes mkBaseRepo mkRepo;
         inherit (modules) systemGlobal;
 
         # backwards compat (stuff was moved to the xnlib flake)

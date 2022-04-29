@@ -52,8 +52,8 @@
             baseInputs = inputs;
         };
 
-        inherit (lib.kuiser) mkRootRepo;
-    in mkRootRepo {
+        inherit (lib.kuiser) mkBaseRepo;
+    in mkBaseRepo {
         inherit inputs;
     };
 }
