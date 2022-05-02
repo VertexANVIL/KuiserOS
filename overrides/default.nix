@@ -22,6 +22,6 @@
         inherit bird2 manix nixos-option;
 
         # previously upstreamed
-        inherit juju enigma fort-validator hp-ams vault-token-helper;
+        inherit fort-validator hp-ams vault-token-helper;
     })];
 }
