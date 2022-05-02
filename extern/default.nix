@@ -15,7 +15,6 @@ in
     ]);
 
     overlays = with inputs; [
-        nix.overlay
         nur.overlay
 
         # for packages imported from flakes
@@ -23,10 +22,7 @@ in
             importNamed = names: genAttrs names (n:
                 inputs.${n}.packages.${prev.system}.${n}
             );
-        in ({
-            # packages that don't follow the rule here
-            nixUnstable = prev.nix;
-        }) // (importNamed [
+        in (importNamed [
             "colmena"
             "nixos-generators"
         ]))
