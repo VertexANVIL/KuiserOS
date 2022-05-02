@@ -32,6 +32,14 @@ in mkProfile {
             viAlias = true;
             vimAlias = true;
         };
+
+        # set required defaults for git
+        git = {
+            enable = true;
+
+            # disable git "safe directory" feature as it breaks rebuilds
+            config.safe.directory = ["*"];  
+        };
     };
 
     services = {
