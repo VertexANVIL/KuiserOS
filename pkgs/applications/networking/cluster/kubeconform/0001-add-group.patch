@@ -1,0 +1,19 @@
+diff --git a/pkg/registry/registry.go b/pkg/registry/registry.go
+index 40f7cae..878b9eb 100644
+--- a/pkg/registry/registry.go
++++ b/pkg/registry/registry.go
+@@ -60,12 +60,14 @@ func schemaPath(tpl, resourceKind, resourceAPIVersion, k8sVersion string, strict
+ 		NormalizedKubernetesVersion string
+ 		StrictSuffix                string
+ 		ResourceKind                string
++		ResourceGroup               string
+ 		ResourceAPIVersion          string
+ 		KindSuffix                  string
+ 	}{
+ 		normalisedVersion,
+ 		strictSuffix,
+ 		strings.ToLower(resourceKind),
++		groupParts[0],
+ 		groupParts[len(groupParts)-1],
+ 		kindSuffix,
+ 	}
