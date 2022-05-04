@@ -1,7 +1,7 @@
 { lib, pkgs, ... }:
 {
     nix = {
-        package = pkgs.nixFlakes;
+        package = pkgs.nix_2_4;
         systemFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
 
         autoOptimiseStore = true;

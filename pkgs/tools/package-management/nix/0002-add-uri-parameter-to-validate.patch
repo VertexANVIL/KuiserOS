@@ -1,0 +1,148 @@
+diff --git a/src/libexpr/primops/validateAsJSON.cc b/src/libexpr/primops/validateAsJSON.cc
+index bd18fbdc4..55f354d0f 100644
+--- a/src/libexpr/primops/validateAsJSON.cc
++++ b/src/libexpr/primops/validateAsJSON.cc
+@@ -10,6 +10,7 @@
+ #include <nlohmann/json-uri.cpp>
+ #include <nlohmann/json-validator.cpp>
+ #include <nlohmann/json.hpp>
++#include <nlohmann/string-format-check.cpp>
+ 
+ class custom_error_handler : public error_handler
+ {
+@@ -24,6 +25,18 @@ class custom_error_handler : public error_handler
+     }
+ };
+ 
++static void validator_format_checker(const std::string &format, const std::string &value)
++{
++    // todo - implement; for now, this is a passthrough; the same as what Kubeval does
++    if (format == "int64" || format == "byte" || format == "int32" || format == "int-or-string")
++    {
++        // TODO: not implemented
++        return;
++    }
++
++    nlohmann::json_schema::default_string_format_check(format, value);
++}
++
+ namespace nix
+ {
+ 
+@@ -31,25 +44,29 @@ static void prim_validateAsJSON(EvalState &state, const Pos &pos, Value **args,
+ {
+     state.forceValue(*args[0], pos);
+     state.forceValue(*args[1], pos);
++    state.forceValue(*args[2], pos);
+ 
+     PathSet context;
++  
++    const std::string uriStr = state.forceString(*args[1], context, pos);
++
+     std::ostringstream dataStr;
+     std::ostringstream schemaStr;
+     printValueAsJSON(state, true, *args[0], schemaStr, context);
+-    printValueAsJSON(state, true, *args[1], dataStr, context);
++    printValueAsJSON(state, true, *args[2], dataStr, context);
+ 
+     nlohmann::json dataJson = nlohmann::json::parse(dataStr.str());
+     nlohmann::json schemaJson = nlohmann::json::parse(schemaStr.str());
+ 
+-    nlohmann::json_schema::json_validator validator;
++    nlohmann::json_schema::json_validator validator(nullptr, validator_format_checker);
+     custom_error_handler validator_error_handler;
+ 
+     state.mkAttrs(v, 2);
+     try
+     {
+         validator.set_root_schema(schemaJson);
+-        validator.validate(dataJson, validator_error_handler);
+-        v.attrs->push_back(Attr(state.sValue, args[1]));
++        validator.validate(dataJson, validator_error_handler, json_uri(uriStr));
++        v.attrs->push_back(Attr(state.sValue, args[2]));
+         mkBool(*state.allocAttr(v, state.symbols.create("success")), true);
+     }
+     catch (const std::exception &e)
+@@ -64,9 +81,9 @@ static void prim_validateAsJSON(EvalState &state, const Pos &pos, Value **args,
+ 
+ static RegisterPrimOp r_validateAsJSON({
+     .name = "validateAsJSON",
+-    .args = {"schema", "data"},
++    .args = {"schema", "uri", "data"},
+     .doc = R"(
+-        Validate `data` with the provided JSON `schema`
++        Validate `data` at the path `uri` with the provided JSON `schema`
+         and return a set containing the attributes:
+         - `success`: `true` if `data` complies `schema` and `false` otherwise.
+         - `value`: equals `data` if successful,
+@@ -100,7 +117,7 @@ static RegisterPrimOp r_validateAsJSON({
+             { age = 24; name.first = "Jane"; name.last = "Doe"; }
+           ];
+         in
+-        map (validateAsJSON schema) exampleData == [
++        map (validateAsJSON schema "#") exampleData == [
+           { success = false;
+             value = "At '/name', required property 'last' not found in object"; }
+           { success = true;
+diff --git a/src/nlohmann/json-validator.cpp b/src/nlohmann/json-validator.cpp
+index d4358081c..dbd5b303b 100644
+--- a/src/nlohmann/json-validator.cpp
++++ b/src/nlohmann/json-validator.cpp
+@@ -232,22 +232,24 @@ class root_schema
+         //
+         // an unknown keyword can only be referenced by a json-pointer,
+         // not by a plain name fragment
+-        if (uri.pointer() != "")
+-        {
+-            try
+-            {
+-                auto &subschema = file.unknown_keywords.at(uri.pointer()); // null is returned if not existing
+-                auto s = schema::make(subschema, this, {}, {{uri}}); //  A JSON Schema MUST be an object or a boolean.
+-                if (s)
+-                { // nullptr if invalid schema, e.g. null
+-                    file.unknown_keywords.erase(uri.fragment());
+-                    return s;
+-                }
+-            }
+-            catch (nlohmann::detail::out_of_range &)
+-            { // at() did not find it
+-            }
+-        }
++
++        // disabled: see https://github.com/pboettch/json-schema-validator/issues/168
++        // if (uri.pointer() != "")
++        // {
++        //     try
++        //     {
++        //         auto &subschema = file.unknown_keywords.at(uri.pointer()); // null is returned if not existing
++        //         auto s = schema::make(subschema, this, {}, {{uri}}); //  A JSON Schema MUST be an object or a boolean.
++        //         if (s)
++        //         { // nullptr if invalid schema, e.g. null
++        //             file.unknown_keywords.erase(uri.fragment());
++        //             return s;
++        //         }
++        //     }
++        //     catch (nlohmann::detail::out_of_range &)
++        //     { // at() did not find it
++        //     }
++        // }
+ 
+         // get or create a schema_ref
+         auto r = file.unresolved.lower_bound(uri.fragment());
+diff --git a/tests/lang/eval-okay-builtins-validateAsJSON.nix b/tests/lang/eval-okay-builtins-validateAsJSON.nix
+index 3b863f64e..2fac51178 100644
+--- a/tests/lang/eval-okay-builtins-validateAsJSON.nix
++++ b/tests/lang/eval-okay-builtins-validateAsJSON.nix
+@@ -21,8 +21,8 @@ let
+   };
+ in
+ [
+-  (validateAsJSON "Invalid JSON schema" { })
+-  (validateAsJSON schema { })
+-  (validateAsJSON schema { age = 24; name.first = "Jane"; })
+-  (validateAsJSON schema { age = 24; name.first = "Jane"; name.last = "Doe"; })
++  (validateAsJSON "Invalid JSON schema" "#" { })
++  (validateAsJSON schema "#" { })
++  (validateAsJSON schema "#" { age = 24; name.first = "Jane"; })
++  (validateAsJSON schema "#" { age = 24; name.first = "Jane"; name.last = "Doe"; })
+ ]

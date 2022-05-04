@@ -1,0 +1,2909 @@
+From 373a8a374474ec6a73d10cdfe2bded30c5c8343d Mon Sep 17 00:00:00 2001
+From: Kevin Amado <kamadorueda@gmail.com>
+Date: Mon, 18 Oct 2021 03:09:45 -0500
+Subject: [PATCH] builtins.validateAsJSON
+
+- Add https://github.com/pboettch/json-schema-validator
+  as a dependency
+
+  `json-schema-validator` is a library that uses `nlohmann` internally,
+  which is being used in other components of Nix already
+
+  `json-schema-validator` is MIT licensed,
+  complies with the latest draft of JSON schema
+  and is the second one with most stars on GitHub
+- Add a new builtin for validating data with a JSON schema.
+
+  This builtin receives two arguments: `schema` and `data`,
+  both in Nix format
+- Demo:
+
+  ```nix
+  let
+    schema = {
+      title = "A person";
+      properties = {
+        age = {
+          description = "Age of the person";
+          type = "number";
+          minimum = 1;
+          maximum = 200;
+        };
+        name = {
+          description = "Complete Name for the person";
+          first.type = "string";
+          last.type = "string";
+          required = [ "first" "last" ];
+          type = "object";
+        };
+      };
+      required = [ "name" "age" ];
+      type = "object";
+    };
+  in
+  map (validateAsJSON schema) [
+    { }
+    { age = 24; name.first = "Jane"; }
+    { age = 24; name.first = "Jane"; name.last = "Doe"; }
+  ]
+  ```
+
+  ```bash
+  $ nix-instantiate --eval --strict test.nix
+  [
+    { success = false;
+      value = "At '/', required property 'name' not found in object"; }
+    { success = false;
+      value = "At '/name', required property 'last' not found in object"; }
+    { success = true;
+      value = { age = 24; name = { first = "Jane"; last = "Doe"; }; }; }
+  ]
+  ```
+- This demo was also added to the documentation in a simplified form
+- Added language tests
+
+Mentions #5392
+---
+ src/libexpr/primops/validateAsJSON.cc         |  114 ++
+ src/nlohmann/json-patch.cpp                   |  121 ++
+ src/nlohmann/json-patch.hpp                   |   53 +
+ src/nlohmann/json-schema-draft7.json.cpp      |  185 ++
+ src/nlohmann/json-schema.hpp                  |  227 +++
+ src/nlohmann/json-uri.cpp                     |  159 ++
+ src/nlohmann/json-validator.cpp               | 1485 +++++++++++++++++
+ src/nlohmann/string-format-check.cpp          |  388 +++++
+ .../eval-okay-builtins-validateAsJSON.exp     |    1 +
+ .../eval-okay-builtins-validateAsJSON.nix     |   28 +
+ 10 files changed, 2761 insertions(+)
+ create mode 100644 src/libexpr/primops/validateAsJSON.cc
+ create mode 100644 src/nlohmann/json-patch.cpp
+ create mode 100644 src/nlohmann/json-patch.hpp
+ create mode 100644 src/nlohmann/json-schema-draft7.json.cpp
+ create mode 100644 src/nlohmann/json-schema.hpp
+ create mode 100644 src/nlohmann/json-uri.cpp
+ create mode 100644 src/nlohmann/json-validator.cpp
+ create mode 100644 src/nlohmann/string-format-check.cpp
+ create mode 100644 tests/lang/eval-okay-builtins-validateAsJSON.exp
+ create mode 100644 tests/lang/eval-okay-builtins-validateAsJSON.nix
+
+diff --git a/src/libexpr/primops/validateAsJSON.cc b/src/libexpr/primops/validateAsJSON.cc
+new file mode 100644
+index 00000000000..bd18fbdc43d
+--- /dev/null
++++ b/src/libexpr/primops/validateAsJSON.cc
+@@ -0,0 +1,114 @@
++#include "eval-inline.hh"
++#include "primops.hh"
++#include "value-to-json.hh"
++
++#include <iostream>
++#include <sstream>
++
++#include <nlohmann/json-patch.cpp>
++#include <nlohmann/json-schema.hpp>
++#include <nlohmann/json-uri.cpp>
++#include <nlohmann/json-validator.cpp>
++#include <nlohmann/json.hpp>
++
++class custom_error_handler : public error_handler
++{
++    void error(const json::json_pointer &ptr, const json &instance, const std::string &message) override
++    {
++        std::string pos = ptr.to_string();
++
++        if (pos == "")
++            pos = "/";
++
++        throw std::invalid_argument("At '" + pos + "', " + message);
++    }
++};
++
++namespace nix
++{
++
++static void prim_validateAsJSON(EvalState &state, const Pos &pos, Value **args, Value &v)
++{
++    state.forceValue(*args[0], pos);
++    state.forceValue(*args[1], pos);
++
++    PathSet context;
++    std::ostringstream dataStr;
++    std::ostringstream schemaStr;
++    printValueAsJSON(state, true, *args[0], schemaStr, context);
++    printValueAsJSON(state, true, *args[1], dataStr, context);
++
++    nlohmann::json dataJson = nlohmann::json::parse(dataStr.str());
++    nlohmann::json schemaJson = nlohmann::json::parse(schemaStr.str());
++
++    nlohmann::json_schema::json_validator validator;
++    custom_error_handler validator_error_handler;
++
++    state.mkAttrs(v, 2);
++    try
++    {
++        validator.set_root_schema(schemaJson);
++        validator.validate(dataJson, validator_error_handler);
++        v.attrs->push_back(Attr(state.sValue, args[1]));
++        mkBool(*state.allocAttr(v, state.symbols.create("success")), true);
++    }
++    catch (const std::exception &e)
++    {
++        Value *error = state.allocValue();
++        mkString(*error, e.what());
++        v.attrs->push_back(Attr(state.sValue, error));
++        mkBool(*state.allocAttr(v, state.symbols.create("success")), false);
++    }
++    v.attrs->sort();
++};
++
++static RegisterPrimOp r_validateAsJSON({
++    .name = "validateAsJSON",
++    .args = {"schema", "data"},
++    .doc = R"(
++        Validate `data` with the provided JSON `schema`
++        and return a set containing the attributes:
++        - `success`: `true` if `data` complies `schema` and `false` otherwise.
++        - `value`: equals `data` if successful,
++          and a string explaining why and where the validation failed otherwise.
++
++        ```nix
++        let
++          schema = {
++            title = "A person";
++            properties = {
++              age = {
++                description = "Age of the person";
++                type = "number";
++                minimum = 1;
++                maximum = 200;
++              };
++              name = {
++                description = "Complete Name for the person";
++                first.type = "string";
++                last.type = "string";
++                required = [ "first" "last" ];
++                type = "object";
++              };
++            };
++            required = [ "name" "age" ];
++            type = "object";
++          };
++
++          exampleData = [
++            { age = 24; name.first = "Jane"; }
++            { age = 24; name.first = "Jane"; name.last = "Doe"; }
++          ];
++        in
++        map (validateAsJSON schema) exampleData == [
++          { success = false;
++            value = "At '/name', required property 'last' not found in object"; }
++          { success = true;
++            value = { age = 24; name.first = "Jane"; name.last = "Doe"; }; }
++        ]
++        ```
++    )",
++    .fun = prim_validateAsJSON,
++});
++
++} // namespace nix
+diff --git a/src/nlohmann/json-patch.cpp b/src/nlohmann/json-patch.cpp
+new file mode 100644
+index 00000000000..dae41dfe528
+--- /dev/null
++++ b/src/nlohmann/json-patch.cpp
+@@ -0,0 +1,121 @@
++/*
++ * JSON schema validator for JSON for modern C++
++ *
++ * Copyright (c) 2016-2019 Patrick Boettcher <p@yai.se>.
++ *
++ * SPDX-License-Identifier: MIT
++ *
++ */
++#include "json-patch.hpp"
++
++#include <nlohmann/json-schema.hpp>
++
++namespace
++{
++
++// originally from http://jsonpatch.com/, http://json.schemastore.org/json-patch
++// with fixes
++const nlohmann::json patch_schema = R"patch({
++    "title": "JSON schema for JSONPatch files",
++    "$schema": "http://json-schema.org/draft-04/schema#",
++    "type": "array",
++
++    "items": {
++        "oneOf": [
++            {
++                "additionalProperties": false,
++                "required": [ "value", "op", "path"],
++                "properties": {
++                    "path" : { "$ref": "#/definitions/path" },
++                    "op": {
++                        "description": "The operation to perform.",
++                        "type": "string",
++                        "enum": [ "add", "replace", "test" ]
++                    },
++                    "value": {
++                        "description": "The value to add, replace or test."
++                    }
++                }
++            },
++            {
++                "additionalProperties": false,
++                "required": [ "op", "path"],
++                "properties": {
++                    "path" : { "$ref": "#/definitions/path" },
++                    "op": {
++                        "description": "The operation to perform.",
++                        "type": "string",
++                        "enum": [ "remove" ]
++                    }
++                }
++            },
++            {
++                "additionalProperties": false,
++                "required": [ "from", "op", "path" ],
++                "properties": {
++                    "path" : { "$ref": "#/definitions/path" },
++                    "op": {
++                        "description": "The operation to perform.",
++                        "type": "string",
++                        "enum": [ "move", "copy" ]
++                    },
++                    "from": {
++                        "$ref": "#/definitions/path",
++                        "description": "A JSON Pointer path pointing to the location to move/copy from."
++                    }
++                }
++            }
++        ]
++    },
++    "definitions": {
++        "path": {
++            "description": "A JSON Pointer path.",
++            "type": "string"
++        }
++    }
++})patch"_json;
++} // namespace
++
++namespace nlohmann
++{
++
++json_patch::json_patch(json &&patch) : j_(std::move(patch))
++{
++    validateJsonPatch(j_);
++}
++
++json_patch::json_patch(const json &patch) : j_(std::move(patch))
++{
++    validateJsonPatch(j_);
++}
++
++json_patch &json_patch::add(const json::json_pointer &ptr, json value)
++{
++    j_.push_back(json{{"op", "add"}, {"path", ptr}, {"value", std::move(value)}});
++    return *this;
++}
++
++json_patch &json_patch::replace(const json::json_pointer &ptr, json value)
++{
++    j_.push_back(json{{"op", "replace"}, {"path", ptr}, {"value", std::move(value)}});
++    return *this;
++}
++
++json_patch &json_patch::remove(const json::json_pointer &ptr)
++{
++    j_.push_back(json{{"op", "remove"}, {"path", ptr}});
++    return *this;
++}
++
++void json_patch::validateJsonPatch(json const &patch)
++{
++    // static put here to have it created at the first usage of validateJsonPatch
++    static nlohmann::json_schema::json_validator patch_validator(patch_schema);
++
++    patch_validator.validate(patch);
++
++    for (auto const &op : patch)
++        json::json_pointer(op["path"].get<std::string>());
++}
++
++} // namespace nlohmann
+diff --git a/src/nlohmann/json-patch.hpp b/src/nlohmann/json-patch.hpp
+new file mode 100644
+index 00000000000..a655f413172
+--- /dev/null
++++ b/src/nlohmann/json-patch.hpp
+@@ -0,0 +1,53 @@
++/*
++ * JSON schema validator for JSON for modern C++
++ *
++ * Copyright (c) 2016-2019 Patrick Boettcher <p@yai.se>.
++ *
++ * SPDX-License-Identifier: MIT
++ *
++ */
++#pragma once
++
++#include <nlohmann/json.hpp>
++#include <string>
++
++namespace nlohmann
++{
++class JsonPatchFormatException : public std::exception
++{
++  public:
++    explicit JsonPatchFormatException(std::string msg) : ex_{std::move(msg)}
++    {
++    }
++
++    inline const char *what() const noexcept override final
++    {
++        return ex_.c_str();
++    }
++
++  private:
++    std::string ex_;
++};
++
++class json_patch
++{
++  public:
++    json_patch() = default;
++    json_patch(json &&patch);
++    json_patch(const json &patch);
++
++    json_patch &add(const json::json_pointer &, json value);
++    json_patch &replace(const json::json_pointer &, json value);
++    json_patch &remove(const json::json_pointer &);
++
++    operator json() const
++    {
++        return j_;
++    }
++
++  private:
++    json j_;
++
++    static void validateJsonPatch(json const &patch);
++};
++} // namespace nlohmann
+diff --git a/src/nlohmann/json-schema-draft7.json.cpp b/src/nlohmann/json-schema-draft7.json.cpp
+new file mode 100644
+index 00000000000..b680e2c2d21
+--- /dev/null
++++ b/src/nlohmann/json-schema-draft7.json.cpp
+@@ -0,0 +1,185 @@
++/*
++ * JSON schema validator for JSON for modern C++
++ *
++ * Copyright (c) 2016-2019 Patrick Boettcher <p@yai.se>.
++ *
++ * SPDX-License-Identifier: MIT
++ *
++ */
++#include <nlohmann/json.hpp>
++
++namespace nlohmann
++{
++namespace json_schema
++{
++
++json draft7_schema_builtin = R"( {
++    "$schema": "http://json-schema.org/draft-07/schema#",
++    "$id": "http://json-schema.org/draft-07/schema#",
++    "title": "Core schema meta-schema",
++    "definitions": {
++        "schemaArray": {
++            "type": "array",
++            "minItems": 1,
++            "items": { "$ref": "#" }
++        },
++        "nonNegativeInteger": {
++            "type": "integer",
++            "minimum": 0
++        },
++        "nonNegativeIntegerDefault0": {
++            "allOf": [
++                { "$ref": "#/definitions/nonNegativeInteger" },
++                { "default": 0 }
++            ]
++        },
++        "simpleTypes": {
++            "enum": [
++                "array",
++                "boolean",
++                "integer",
++                "null",
++                "number",
++                "object",
++                "string"
++            ]
++        },
++        "stringArray": {
++            "type": "array",
++            "items": { "type": "string" },
++            "uniqueItems": true,
++            "default": []
++        }
++    },
++    "type": ["object", "boolean"],
++    "properties": {
++        "$id": {
++            "type": "string",
++            "format": "uri-reference"
++        },
++        "$schema": {
++            "type": "string",
++            "format": "uri"
++        },
++        "$ref": {
++            "type": "string",
++            "format": "uri-reference"
++        },
++        "$comment": {
++            "type": "string"
++        },
++        "title": {
++            "type": "string"
++        },
++        "description": {
++            "type": "string"
++        },
++        "default": true,
++        "readOnly": {
++            "type": "boolean",
++            "default": false
++        },
++        "examples": {
++            "type": "array",
++            "items": true
++        },
++        "multipleOf": {
++            "type": "number",
++            "exclusiveMinimum": 0
++        },
++        "maximum": {
++            "type": "number"
++        },
++        "exclusiveMaximum": {
++            "type": "number"
++        },
++        "minimum": {
++            "type": "number"
++        },
++        "exclusiveMinimum": {
++            "type": "number"
++        },
++        "maxLength": { "$ref": "#/definitions/nonNegativeInteger" },
++        "minLength": { "$ref": "#/definitions/nonNegativeIntegerDefault0" },
++        "pattern": {
++            "type": "string",
++            "format": "regex"
++        },
++        "additionalItems": { "$ref": "#" },
++        "items": {
++            "anyOf": [
++                { "$ref": "#" },
++                { "$ref": "#/definitions/schemaArray" }
++            ],
++            "default": true
++        },
++        "maxItems": { "$ref": "#/definitions/nonNegativeInteger" },
++        "minItems": { "$ref": "#/definitions/nonNegativeIntegerDefault0" },
++        "uniqueItems": {
++            "type": "boolean",
++            "default": false
++        },
++        "contains": { "$ref": "#" },
++        "maxProperties": { "$ref": "#/definitions/nonNegativeInteger" },
++        "minProperties": { "$ref": "#/definitions/nonNegativeIntegerDefault0" },
++        "required": { "$ref": "#/definitions/stringArray" },
++        "additionalProperties": { "$ref": "#" },
++        "definitions": {
++            "type": "object",
++            "additionalProperties": { "$ref": "#" },
++            "default": {}
++        },
++        "properties": {
++            "type": "object",
++            "additionalProperties": { "$ref": "#" },
++            "default": {}
++        },
++        "patternProperties": {
++            "type": "object",
++            "additionalProperties": { "$ref": "#" },
++            "propertyNames": { "format": "regex" },
++            "default": {}
++        },
++        "dependencies": {
++            "type": "object",
++            "additionalProperties": {
++                "anyOf": [
++                    { "$ref": "#" },
++                    { "$ref": "#/definitions/stringArray" }
++                ]
++            }
++        },
++        "propertyNames": { "$ref": "#" },
++        "const": true,
++        "enum": {
++            "type": "array",
++            "items": true,
++            "minItems": 1,
++            "uniqueItems": true
++        },
++        "type": {
++            "anyOf": [
++                { "$ref": "#/definitions/simpleTypes" },
++                {
++                    "type": "array",
++                    "items": { "$ref": "#/definitions/simpleTypes" },
++                    "minItems": 1,
++                    "uniqueItems": true
++                }
++            ]
++        },
++        "format": { "type": "string" },
++        "contentMediaType": { "type": "string" },
++        "contentEncoding": { "type": "string" },
++        "if": { "$ref": "#" },
++        "then": { "$ref": "#" },
++        "else": { "$ref": "#" },
++        "allOf": { "$ref": "#/definitions/schemaArray" },
++        "anyOf": { "$ref": "#/definitions/schemaArray" },
++        "oneOf": { "$ref": "#/definitions/schemaArray" },
++        "not": { "$ref": "#" }
++    },
++    "default": true
++} )"_json;
++}
++} // namespace nlohmann
+diff --git a/src/nlohmann/json-schema.hpp b/src/nlohmann/json-schema.hpp
+new file mode 100644
+index 00000000000..602634a2724
+--- /dev/null
++++ b/src/nlohmann/json-schema.hpp
+@@ -0,0 +1,227 @@
++/*
++ * JSON schema validator for JSON for modern C++
++ *
++ * Copyright (c) 2016-2019 Patrick Boettcher <p@yai.se>.
++ *
++ * SPDX-License-Identifier: MIT
++ *
++ */
++#ifndef NLOHMANN_JSON_SCHEMA_HPP__
++#define NLOHMANN_JSON_SCHEMA_HPP__
++
++#ifdef _WIN32
++#if defined(JSON_SCHEMA_VALIDATOR_EXPORTS)
++#define JSON_SCHEMA_VALIDATOR_API __declspec(dllexport)
++#elif defined(JSON_SCHEMA_VALIDATOR_IMPORTS)
++#define JSON_SCHEMA_VALIDATOR_API __declspec(dllimport)
++#else
++#define JSON_SCHEMA_VALIDATOR_API
++#endif
++#else
++#define JSON_SCHEMA_VALIDATOR_API
++#endif
++
++#include <nlohmann/json.hpp>
++
++#ifdef NLOHMANN_JSON_VERSION_MAJOR
++#if (NLOHMANN_JSON_VERSION_MAJOR * 10000 + NLOHMANN_JSON_VERSION_MINOR * 100 + NLOHMANN_JSON_VERSION_PATCH) < 30800
++#error "Please use this library with NLohmann's JSON version 3.8.0 or higher"
++#endif
++#else
++#error "expected existing NLOHMANN_JSON_VERSION_MAJOR preproc variable, please update to NLohmann's JSON 3.8.0"
++#endif
++
++// make yourself a home - welcome to nlohmann's namespace
++namespace nlohmann
++{
++
++// A class representing a JSON-URI for schemas derived from
++// section 8 of JSON Schema: A Media Type for Describing JSON Documents
++// draft-wright-json-schema-00
++//
++// New URIs can be derived from it using the derive()-method.
++// This is useful for resolving refs or subschema-IDs in json-schemas.
++//
++// This is done implement the requirements described in section 8.2.
++//
++class JSON_SCHEMA_VALIDATOR_API json_uri
++{
++    std::string urn_;
++
++    std::string scheme_;
++    std::string authority_;
++    std::string path_;
++
++    json::json_pointer pointer_; // fragment part if JSON-Pointer
++    std::string identifier_;     // fragment part if Locatation Independent ID
++
++  protected:
++    // decodes a JSON uri and replaces all or part of the currently stored values
++    void update(const std::string &uri);
++
++    std::tuple<std::string, std::string, std::string, std::string, std::string> as_tuple() const
++    {
++        return std::make_tuple(urn_, scheme_, authority_, path_, identifier_ != "" ? identifier_ : pointer_);
++    }
++
++  public:
++    json_uri(const std::string &uri)
++    {
++        update(uri);
++    }
++
++    const std::string &scheme() const
++    {
++        return scheme_;
++    }
++    const std::string &authority() const
++    {
++        return authority_;
++    }
++    const std::string &path() const
++    {
++        return path_;
++    }
++
++    const json::json_pointer &pointer() const
++    {
++        return pointer_;
++    }
++    const std::string &identifier() const
++    {
++        return identifier_;
++    }
++
++    std::string fragment() const
++    {
++        if (identifier_ == "")
++            return pointer_;
++        else
++            return identifier_;
++    }
++
++    std::string url() const
++    {
++        return location();
++    }
++    std::string location() const;
++
++    static std::string escape(const std::string &);
++
++    // create a new json_uri based in this one and the given uri
++    // resolves relative changes (pathes or pointers) and resets part if proto or hostname changes
++    json_uri derive(const std::string &uri) const
++    {
++        json_uri u = *this;
++        u.update(uri);
++        return u;
++    }
++
++    // append a pointer-field to the pointer-part of this uri
++    json_uri append(const std::string &field) const
++    {
++        if (identifier_ != "")
++            return *this;
++
++        json_uri u = *this;
++        u.pointer_ /= field;
++        return u;
++    }
++
++    std::string to_string() const;
++
++    friend bool operator<(const json_uri &l, const json_uri &r)
++    {
++        return l.as_tuple() < r.as_tuple();
++    }
++
++    friend bool operator==(const json_uri &l, const json_uri &r)
++    {
++        return l.as_tuple() == r.as_tuple();
++    }
++
++    friend std::ostream &operator<<(std::ostream &os, const json_uri &u);
++};
++
++namespace json_schema
++{
++
++extern json draft7_schema_builtin;
++
++typedef std::function<void(const json_uri & /*id*/, json & /*value*/)> schema_loader;
++typedef std::function<void(const std::string & /*format*/, const std::string & /*value*/)> format_checker;
++typedef std::function<void(const std::string & /*contentEncoding*/, const std::string & /*contentMediaType*/,
++                           const json & /*instance*/)>
++    content_checker;
++
++// Interface for validation error handlers
++class JSON_SCHEMA_VALIDATOR_API error_handler
++{
++  public:
++    virtual ~error_handler()
++    {
++    }
++    virtual void error(const json::json_pointer & /*ptr*/, const json & /*instance*/,
++                       const std::string & /*message*/) = 0;
++};
++
++class JSON_SCHEMA_VALIDATOR_API basic_error_handler : public error_handler
++{
++    bool error_{false};
++
++  public:
++    void error(const json::json_pointer & /*ptr*/, const json & /*instance*/, const std::string & /*message*/) override
++    {
++        error_ = true;
++    }
++
++    virtual void reset()
++    {
++        error_ = false;
++    }
++    operator bool() const
++    {
++        return error_;
++    }
++};
++
++/**
++ * Checks validity of JSON schema built-in string format specifiers like 'date-time', 'ipv4', ...
++ */
++void default_string_format_check(const std::string &format, const std::string &value);
++
++class root_schema;
++
++class JSON_SCHEMA_VALIDATOR_API json_validator
++{
++    std::unique_ptr<root_schema> root_;
++
++  public:
++    json_validator(schema_loader = nullptr, format_checker = nullptr, content_checker = nullptr);
++
++    json_validator(const json &, schema_loader = nullptr, format_checker = nullptr, content_checker = nullptr);
++    json_validator(json &&, schema_loader = nullptr, format_checker = nullptr, content_checker = nullptr);
++
++    json_validator(json_validator &&);
++    json_validator &operator=(json_validator &&);
++
++    json_validator(json_validator const &) = delete;
++    json_validator &operator=(json_validator const &) = delete;
++
++    ~json_validator();
++
++    // insert and set the root-schema
++    void set_root_schema(const json &);
++    void set_root_schema(json &&);
++
++    // validate a json-document based on the root-schema
++    json validate(const json &) const;
++
++    // validate a json-document based on the root-schema with a custom error-handler
++    json validate(const json &, error_handler &, const json_uri &initial_uri = json_uri("#")) const;
++};
++
++} // namespace json_schema
++} // namespace nlohmann
++
++#endif /* NLOHMANN_JSON_SCHEMA_HPP__ */
+diff --git a/src/nlohmann/json-uri.cpp b/src/nlohmann/json-uri.cpp
+new file mode 100644
+index 00000000000..260255613c5
+--- /dev/null
++++ b/src/nlohmann/json-uri.cpp
+@@ -0,0 +1,159 @@
++/*
++ * JSON schema validator for JSON for modern C++
++ *
++ * Copyright (c) 2016-2019 Patrick Boettcher <p@yai.se>.
++ *
++ * SPDX-License-Identifier: MIT
++ *
++ */
++#include <nlohmann/json-schema.hpp>
++
++#include <sstream>
++
++namespace nlohmann
++{
++
++void json_uri::update(const std::string &uri)
++{
++	std::string pointer = ""; // default pointer is document-root
++
++	// first split the URI into location and pointer
++	auto pointer_separator = uri.find('#');
++	if (pointer_separator != std::string::npos) {    // and extract the pointer-string if found
++		pointer = uri.substr(pointer_separator + 1); // remove #
++
++		// unescape %-values IOW, decode JSON-URI-formatted JSON-pointer
++		std::size_t pos = pointer.size() - 1;
++		do {
++			pos = pointer.rfind('%', pos);
++			if (pos == std::string::npos)
++				break;
++
++			if (pos >= pointer.size() - 2) {
++				pos--;
++				continue;
++			}
++
++			std::string hex = pointer.substr(pos + 1, 2);
++			char ascii = static_cast<char>(std::strtoul(hex.c_str(), nullptr, 16));
++			pointer.replace(pos, 3, 1, ascii);
++
++			pos--;
++		} while (1);
++	}
++
++	auto location = uri.substr(0, pointer_separator);
++
++	if (location.size()) { // a location part has been found
++
++		// if it is an URN take it as it is
++		if (location.find("urn:") == 0) {
++			urn_ = location;
++
++			// and clear URL members
++			scheme_ = "";
++			authority_ = "";
++			path_ = "";
++
++		} else { // it is an URL
++
++			// split URL in protocol, hostname and path
++			std::size_t pos = 0;
++			auto proto = location.find("://", pos);
++			if (proto != std::string::npos) { // extract the protocol
++
++				urn_ = ""; // clear URN-member if URL is parsed
++
++				scheme_ = location.substr(pos, proto - pos);
++				pos = 3 + proto; // 3 == "://"
++
++				auto authority = location.find("/", pos);
++				if (authority != std::string::npos) { // and the hostname (no proto without hostname)
++					authority_ = location.substr(pos, authority - pos);
++					pos = authority;
++				}
++			}
++
++			auto path = location.substr(pos);
++
++			// URNs cannot of have paths
++			if (urn_.size() && path.size())
++				throw std::invalid_argument("Cannot add a path (" + path + ") to an URN URI (" + urn_ + ")");
++
++			if (path[0] == '/') // if it starts with a / it is root-path
++				path_ = path;
++			else if (pos == 0) { // the URL contained only a path and the current path has no / at the end, strip last element until / and append
++				auto last_slash = path_.rfind('/');
++				path_ = path_.substr(0, last_slash) + '/' + path;
++			} else // otherwise it is a subfolder
++				path_.append(path);
++		}
++	}
++
++	pointer_ = ""_json_pointer;
++	identifier_ = "";
++
++	if (pointer[0] == '/')
++		pointer_ = json::json_pointer(pointer);
++	else
++		identifier_ = pointer;
++}
++
++std::string json_uri::location() const
++{
++	if (urn_.size())
++		return urn_;
++
++	std::stringstream s;
++
++	if (scheme_.size() > 0)
++		s << scheme_ << "://";
++
++	s << authority_
++	  << path_;
++
++	return s.str();
++}
++
++std::string json_uri::to_string() const
++{
++	std::stringstream s;
++
++	s << location() << " # ";
++
++	if (identifier_ == "")
++		s << pointer_.to_string();
++	else
++		s << identifier_;
++
++	return s.str();
++}
++
++std::ostream &operator<<(std::ostream &os, const json_uri &u)
++{
++	return os << u.to_string();
++}
++
++std::string json_uri::escape(const std::string &src)
++{
++	std::vector<std::pair<std::string, std::string>> chars = {
++	    {"~", "~0"},
++	    {"/", "~1"}};
++
++	std::string l = src;
++
++	for (const auto &c : chars) {
++		std::size_t pos = 0;
++		do {
++			pos = l.find(c.first, pos);
++			if (pos == std::string::npos)
++				break;
++			l.replace(pos, 1, c.second);
++			pos += c.second.size();
++		} while (1);
++	}
++
++	return l;
++}
++
++} // namespace nlohmann
+diff --git a/src/nlohmann/json-validator.cpp b/src/nlohmann/json-validator.cpp
+new file mode 100644
+index 00000000000..d4358081c02
+--- /dev/null
++++ b/src/nlohmann/json-validator.cpp
+@@ -0,0 +1,1485 @@
++/*
++ * JSON schema validator for JSON for modern C++
++ *
++ * Copyright (c) 2016-2019 Patrick Boettcher <p@yai.se>.
++ *
++ * SPDX-License-Identifier: MIT
++ *
++ */
++#include <nlohmann/json-schema.hpp>
++
++#include "json-patch.hpp"
++
++#include <deque>
++#include <memory>
++#include <set>
++#include <sstream>
++
++using nlohmann::json;
++using nlohmann::json_patch;
++using nlohmann::json_uri;
++using nlohmann::json_schema::root_schema;
++using namespace nlohmann::json_schema;
++
++#ifdef JSON_SCHEMA_BOOST_REGEX
++#include <boost/regex.hpp>
++#define REGEX_NAMESPACE boost
++#elif defined(JSON_SCHEMA_NO_REGEX)
++#define NO_STD_REGEX
++#else
++#include <regex>
++#define REGEX_NAMESPACE std
++#endif
++
++namespace
++{
++
++static const json EmptyDefault = nullptr;
++
++class schema
++{
++  protected:
++    root_schema *root_;
++
++  public:
++    virtual ~schema() = default;
++
++    schema(root_schema *root) : root_(root)
++    {
++    }
++
++    virtual void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch,
++                          error_handler &e) const = 0;
++
++    virtual const json &defaultValue(const json::json_pointer &, const json &, error_handler &) const
++    {
++        return EmptyDefault;
++    }
++
++    static std::shared_ptr<schema> make(json &schema, root_schema *root, const std::vector<std::string> &key,
++                                        std::vector<nlohmann::json_uri> uris);
++};
++
++class schema_ref : public schema
++{
++    const std::string id_;
++    std::weak_ptr<schema> target_;
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch, error_handler &e) const final
++    {
++        auto target = target_.lock();
++
++        if (target)
++            target->validate(ptr, instance, patch, e);
++        else
++            e.error(ptr, instance, "unresolved or freed schema-reference " + id_);
++    }
++
++    const json &defaultValue(const json::json_pointer &ptr, const json &instance, error_handler &e) const override
++    {
++        auto target = target_.lock();
++
++        if (target)
++            return target->defaultValue(ptr, instance, e);
++        else
++            e.error(ptr, instance, "unresolved or freed schema-reference " + id_);
++
++        return EmptyDefault;
++    }
++
++  public:
++    schema_ref(const std::string &id, root_schema *root) : schema(root), id_(id)
++    {
++    }
++
++    const std::string &id() const
++    {
++        return id_;
++    }
++    void set_target(const std::shared_ptr<schema> &target)
++    {
++        target_ = target;
++    }
++};
++
++} // namespace
++
++namespace nlohmann
++{
++namespace json_schema
++{
++
++class root_schema
++{
++    schema_loader loader_;
++    format_checker format_check_;
++    content_checker content_check_;
++
++    std::shared_ptr<schema> root_;
++
++    struct schema_file
++    {
++        std::map<std::string, std::shared_ptr<schema>> schemas;
++        std::map<std::string, std::shared_ptr<schema_ref>>
++            unresolved; // contains all unresolved references from any other file seen during parsing
++        json unknown_keywords;
++    };
++
++    // location as key
++    std::map<std::string, schema_file> files_;
++
++    schema_file &get_or_create_file(const std::string &loc)
++    {
++        auto file = files_.lower_bound(loc);
++        if (file != files_.end() && !(files_.key_comp()(loc, file->first)))
++            return file->second;
++        else
++            return files_.insert(file, {loc, {}})->second;
++    }
++
++  public:
++    root_schema(schema_loader &&loader, format_checker &&format, content_checker &&content)
++
++        : loader_(std::move(loader)), format_check_(std::move(format)), content_check_(std::move(content))
++    {
++    }
++
++    format_checker &format_check()
++    {
++        return format_check_;
++    }
++    content_checker &content_check()
++    {
++        return content_check_;
++    }
++
++    void insert(const json_uri &uri, const std::shared_ptr<schema> &s)
++    {
++        auto &file = get_or_create_file(uri.location());
++        auto sch = file.schemas.lower_bound(uri.fragment());
++        if (sch != file.schemas.end() && !(file.schemas.key_comp()(uri.fragment(), sch->first)))
++        {
++            throw std::invalid_argument("schema with " + uri.to_string() + " already inserted");
++            return;
++        }
++
++        file.schemas.insert({uri.fragment(), s});
++
++        // was someone referencing this newly inserted schema?
++        auto unresolved = file.unresolved.find(uri.fragment());
++        if (unresolved != file.unresolved.end())
++        {
++            unresolved->second->set_target(s);
++            file.unresolved.erase(unresolved);
++        }
++    }
++
++    void insert_unknown_keyword(const json_uri &uri, const std::string &key, json &value)
++    {
++        auto &file = get_or_create_file(uri.location());
++        auto new_uri = uri.append(key);
++        auto fragment = new_uri.pointer();
++
++        // is there a reference looking for this unknown-keyword, which is thus no longer a unknown keyword but a schema
++        auto unresolved = file.unresolved.find(fragment);
++        if (unresolved != file.unresolved.end())
++            schema::make(value, this, {}, {{new_uri}});
++        else
++        { // no, nothing ref'd it, keep for later
++
++            // need to create an object for each reference-token in the
++            // JSON-Pointer When not existing, a stringified integer reference
++            // token (e.g. "123") in the middle of the pointer will be
++            // interpreted a an array-index and an array will be created.
++
++            // json_pointer's reference_tokens is private - get them
++            std::deque<std::string> ref_tokens;
++            auto uri_pointer = uri.pointer();
++            while (!uri_pointer.empty())
++            {
++                ref_tokens.push_front(uri_pointer.back());
++                uri_pointer.pop_back();
++            }
++
++            // for each token create an object, if not already existing
++            auto unk_kw = &file.unknown_keywords;
++            for (auto &rt : ref_tokens)
++            {
++                auto existing_object = unk_kw->find(rt);
++                if (existing_object == unk_kw->end())
++                    (*unk_kw)[rt] = json::object();
++                unk_kw = &(*unk_kw)[rt];
++            }
++            (*unk_kw)[key] = value;
++        }
++
++        // recursively add possible subschemas of unknown keywords
++        if (value.type() == json::value_t::object)
++            for (auto &subsch : value.items())
++                insert_unknown_keyword(new_uri, subsch.key(), subsch.value());
++    }
++
++    std::shared_ptr<schema> get_or_create_ref(const json_uri &uri)
++    {
++        auto &file = get_or_create_file(uri.location());
++
++        // existing schema
++        auto sch = file.schemas.find(uri.fragment());
++        if (sch != file.schemas.end())
++            return sch->second;
++
++        // referencing an unknown keyword, turn it into schema
++        //
++        // an unknown keyword can only be referenced by a json-pointer,
++        // not by a plain name fragment
++        if (uri.pointer() != "")
++        {
++            try
++            {
++                auto &subschema = file.unknown_keywords.at(uri.pointer()); // null is returned if not existing
++                auto s = schema::make(subschema, this, {}, {{uri}}); //  A JSON Schema MUST be an object or a boolean.
++                if (s)
++                { // nullptr if invalid schema, e.g. null
++                    file.unknown_keywords.erase(uri.fragment());
++                    return s;
++                }
++            }
++            catch (nlohmann::detail::out_of_range &)
++            { // at() did not find it
++            }
++        }
++
++        // get or create a schema_ref
++        auto r = file.unresolved.lower_bound(uri.fragment());
++        if (r != file.unresolved.end() && !(file.unresolved.key_comp()(uri.fragment(), r->first)))
++        {
++            return r->second; // unresolved, already seen previously - use existing reference
++        }
++        else
++        {
++            return file.unresolved.insert(r, {uri.fragment(), std::make_shared<schema_ref>(uri.to_string(), this)})
++                ->second; // unresolved, create reference
++        }
++    }
++
++    void set_root_schema(json sch)
++    {
++        files_.clear();
++        root_ = schema::make(sch, this, {}, {{"#"}});
++
++        // load all files which have not yet been loaded
++        do
++        {
++            bool new_schema_loaded = false;
++
++            // files_ is modified during parsing, iterators are invalidated
++            std::vector<std::string> locations;
++            for (auto &file : files_)
++                locations.push_back(file.first);
++
++            for (auto &loc : locations)
++            {
++                if (files_[loc].schemas.size() == 0)
++                { // nothing has been loaded for this file
++                    if (loader_)
++                    {
++                        json loaded_schema;
++
++                        loader_(loc, loaded_schema);
++
++                        schema::make(loaded_schema, this, {}, {{loc}});
++                        new_schema_loaded = true;
++                    }
++                    else
++                    {
++                        throw std::invalid_argument("external schema reference '" + loc +
++                                                    "' needs loading, but no loader callback given");
++                    }
++                }
++            }
++
++            if (!new_schema_loaded) // if no new schema loaded, no need to try again
++                break;
++        } while (1);
++
++        for (const auto &file : files_)
++            if (file.second.unresolved.size() != 0)
++                throw std::invalid_argument("after all files have been parsed, '" +
++                                            (file.first == "" ? "<root>" : file.first) +
++                                            "' has still undefined references.");
++    }
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch, error_handler &e,
++                  const json_uri &initial) const
++    {
++        if (!root_)
++        {
++            e.error(ptr, "", "no root schema has yet been set for validating an instance");
++            return;
++        }
++
++        auto file_entry = files_.find(initial.location());
++        if (file_entry == files_.end())
++        {
++            e.error(ptr, "", "no file found serving requested root-URI. " + initial.location());
++            return;
++        }
++
++        auto &file = file_entry->second;
++        auto sch = file.schemas.find(initial.fragment());
++        if (sch == file.schemas.end())
++        {
++            e.error(ptr, "", "no schema find for request initial URI: " + initial.to_string());
++            return;
++        }
++
++        sch->second->validate(ptr, instance, patch, e);
++    }
++};
++
++} // namespace json_schema
++} // namespace nlohmann
++
++namespace
++{
++
++class first_error_handler : public error_handler
++{
++  public:
++    bool error_{false};
++    json::json_pointer ptr_;
++    json instance_;
++    std::string message_;
++
++    void error(const json::json_pointer &ptr, const json &instance, const std::string &message) override
++    {
++        if (*this)
++            return;
++        error_ = true;
++        ptr_ = ptr;
++        instance_ = instance;
++        message_ = message;
++    }
++
++    operator bool() const
++    {
++        return error_;
++    }
++};
++
++class logical_not : public schema
++{
++    std::shared_ptr<schema> subschema_;
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch, error_handler &e) const final
++    {
++        first_error_handler esub;
++        subschema_->validate(ptr, instance, patch, esub);
++
++        if (!esub)
++            e.error(ptr, instance, "the subschema has succeeded, but it is required to not validate");
++    }
++
++    const json &defaultValue(const json::json_pointer &ptr, const json &instance, error_handler &e) const override
++    {
++        return subschema_->defaultValue(ptr, instance, e);
++    }
++
++  public:
++    logical_not(json &sch, root_schema *root, const std::vector<nlohmann::json_uri> &uris) : schema(root)
++    {
++        subschema_ = schema::make(sch, root, {"not"}, uris);
++    }
++};
++
++enum logical_combination_types
++{
++    allOf,
++    anyOf,
++    oneOf
++};
++
++template <enum logical_combination_types combine_logic> class logical_combination : public schema
++{
++    std::vector<std::shared_ptr<schema>> subschemata_;
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch, error_handler &e) const final
++    {
++        size_t count = 0;
++
++        for (auto &s : subschemata_)
++        {
++            first_error_handler esub;
++            s->validate(ptr, instance, patch, esub);
++            if (!esub)
++                count++;
++
++            if (is_validate_complete(instance, ptr, e, esub, count))
++                return;
++        }
++
++        // could accumulate esub details for anyOf and oneOf, but not clear how to select which subschema failure to
++        // report or how to report multiple such failures
++        if (count == 0)
++            e.error(ptr, instance, "no subschema has succeeded, but one of them is required to validate");
++    }
++
++    // specialized for each of the logical_combination_types
++    static const std::string key;
++    static bool is_validate_complete(const json &, const json::json_pointer &, error_handler &,
++                                     const first_error_handler &, size_t);
++
++  public:
++    logical_combination(json &sch, root_schema *root, const std::vector<nlohmann::json_uri> &uris) : schema(root)
++    {
++        size_t c = 0;
++        for (auto &subschema : sch)
++            subschemata_.push_back(schema::make(subschema, root, {key, std::to_string(c++)}, uris));
++
++        // value of allOf, anyOf, and oneOf "MUST be a non-empty array"
++        // TODO error/throw? when subschemata_.empty()
++    }
++};
++
++template <> const std::string logical_combination<allOf>::key = "allOf";
++template <> const std::string logical_combination<anyOf>::key = "anyOf";
++template <> const std::string logical_combination<oneOf>::key = "oneOf";
++
++template <>
++bool logical_combination<allOf>::is_validate_complete(const json &, const json::json_pointer &, error_handler &e,
++                                                      const first_error_handler &esub, size_t)
++{
++    if (esub)
++        e.error(esub.ptr_, esub.instance_,
++                "at least one subschema has failed, but all of them are required to validate - " + esub.message_);
++    return esub;
++}
++
++template <>
++bool logical_combination<anyOf>::is_validate_complete(const json &, const json::json_pointer &, error_handler &,
++                                                      const first_error_handler &, size_t count)
++{
++    return count == 1;
++}
++
++template <>
++bool logical_combination<oneOf>::is_validate_complete(const json &instance, const json::json_pointer &ptr,
++                                                      error_handler &e, const first_error_handler &, size_t count)
++{
++    if (count > 1)
++        e.error(ptr, instance,
++                "more than one subschema has succeeded, but exactly one of them is required to validate");
++    return count > 1;
++}
++
++class type_schema : public schema
++{
++    json defaultValue_ = EmptyDefault;
++    std::vector<std::shared_ptr<schema>> type_;
++    std::pair<bool, json> enum_, const_;
++    std::vector<std::shared_ptr<schema>> logic_;
++
++    static std::shared_ptr<schema> make(json &schema, json::value_t type, root_schema *,
++                                        const std::vector<nlohmann::json_uri> &, std::set<std::string> &);
++
++    std::shared_ptr<schema> if_, then_, else_;
++
++    const json &defaultValue(const json::json_pointer &, const json &, error_handler &) const override
++    {
++        return defaultValue_;
++    }
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch,
++                  error_handler &e) const override final
++    {
++        // depending on the type of instance run the type specific validator - if present
++        auto type = type_[static_cast<uint8_t>(instance.type())];
++
++        if (type)
++            type->validate(ptr, instance, patch, e);
++        else
++            e.error(ptr, instance, "unexpected instance type");
++
++        if (enum_.first)
++        {
++            bool seen_in_enum = false;
++            for (auto &v : enum_.second)
++                if (instance == v)
++                {
++                    seen_in_enum = true;
++                    break;
++                }
++
++            if (!seen_in_enum)
++                e.error(ptr, instance, "instance not found in required enum");
++        }
++
++        if (const_.first && const_.second != instance)
++            e.error(ptr, instance, "instance not const");
++
++        for (auto l : logic_)
++            l->validate(ptr, instance, patch, e);
++
++        if (if_)
++        {
++            first_error_handler err;
++
++            if_->validate(ptr, instance, patch, err);
++            if (!err)
++            {
++                if (then_)
++                    then_->validate(ptr, instance, patch, e);
++            }
++            else
++            {
++                if (else_)
++                    else_->validate(ptr, instance, patch, e);
++            }
++        }
++    }
++
++  public:
++    type_schema(json &sch, root_schema *root, const std::vector<nlohmann::json_uri> &uris)
++        : schema(root), type_(static_cast<uint8_t>(json::value_t::discarded) + 1)
++    {
++        // association between JSON-schema-type and NLohmann-types
++        static const std::vector<std::pair<std::string, json::value_t>> schema_types = {
++            {"null", json::value_t::null},           {"object", json::value_t::object},
++            {"array", json::value_t::array},         {"string", json::value_t::string},
++            {"boolean", json::value_t::boolean},     {"integer", json::value_t::number_integer},
++            {"number", json::value_t::number_float},
++        };
++
++        std::set<std::string> known_keywords;
++
++        auto attr = sch.find("type");
++        if (attr == sch.end()) // no type field means all sub-types possible
++            for (auto &t : schema_types)
++                type_[static_cast<uint8_t>(t.second)] = type_schema::make(sch, t.second, root, uris, known_keywords);
++        else
++        {
++            switch (attr.value().type())
++            { // "type": "type"
++
++            case json::value_t::string: {
++                auto schema_type = attr.value().get<std::string>();
++                for (auto &t : schema_types)
++                    if (t.first == schema_type)
++                        type_[static_cast<uint8_t>(t.second)] =
++                            type_schema::make(sch, t.second, root, uris, known_keywords);
++            }
++            break;
++
++            case json::value_t::array: // "type": ["type1", "type2"]
++                for (auto &schema_type : attr.value())
++                    for (auto &t : schema_types)
++                        if (t.first == schema_type)
++                            type_[static_cast<uint8_t>(t.second)] =
++                                type_schema::make(sch, t.second, root, uris, known_keywords);
++                break;
++
++            default:
++                break;
++            }
++
++            sch.erase(attr);
++        }
++
++        const auto defaultAttr = sch.find("default");
++        if (defaultAttr != sch.end())
++        {
++            defaultValue_ = defaultAttr.value();
++        }
++
++        for (auto &key : known_keywords)
++            sch.erase(key);
++
++        // with nlohmann::json float instance (but number in schema-definition) can be seen as unsigned or integer -
++        // reuse the number-validator for integer values as well, if they have not been specified explicitly
++        if (type_[static_cast<uint8_t>(json::value_t::number_float)] &&
++            !type_[static_cast<uint8_t>(json::value_t::number_integer)])
++            type_[static_cast<uint8_t>(json::value_t::number_integer)] =
++                type_[static_cast<uint8_t>(json::value_t::number_float)];
++
++        // #54: JSON-schema does not differentiate between unsigned and signed integer - nlohmann::json does
++        // we stick with JSON-schema: use the integer-validator if instance-value is unsigned
++        type_[static_cast<uint8_t>(json::value_t::number_unsigned)] =
++            type_[static_cast<uint8_t>(json::value_t::number_integer)];
++
++        // special for binary types
++        if (type_[static_cast<uint8_t>(json::value_t::string)])
++        {
++            type_[static_cast<uint8_t>(json::value_t::binary)] = type_[static_cast<uint8_t>(json::value_t::string)];
++        }
++
++        attr = sch.find("enum");
++        if (attr != sch.end())
++        {
++            enum_ = {true, attr.value()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("const");
++        if (attr != sch.end())
++        {
++            const_ = {true, attr.value()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("not");
++        if (attr != sch.end())
++        {
++            logic_.push_back(std::make_shared<logical_not>(attr.value(), root, uris));
++            sch.erase(attr);
++        }
++
++        attr = sch.find("allOf");
++        if (attr != sch.end())
++        {
++            logic_.push_back(std::make_shared<logical_combination<allOf>>(attr.value(), root, uris));
++            sch.erase(attr);
++        }
++
++        attr = sch.find("anyOf");
++        if (attr != sch.end())
++        {
++            logic_.push_back(std::make_shared<logical_combination<anyOf>>(attr.value(), root, uris));
++            sch.erase(attr);
++        }
++
++        attr = sch.find("oneOf");
++        if (attr != sch.end())
++        {
++            logic_.push_back(std::make_shared<logical_combination<oneOf>>(attr.value(), root, uris));
++            sch.erase(attr);
++        }
++
++        attr = sch.find("if");
++        if (attr != sch.end())
++        {
++            auto attr_then = sch.find("then");
++            auto attr_else = sch.find("else");
++
++            if (attr_then != sch.end() || attr_else != sch.end())
++            {
++                if_ = schema::make(attr.value(), root, {"if"}, uris);
++
++                if (attr_then != sch.end())
++                {
++                    then_ = schema::make(attr_then.value(), root, {"then"}, uris);
++                    sch.erase(attr_then);
++                }
++
++                if (attr_else != sch.end())
++                {
++                    else_ = schema::make(attr_else.value(), root, {"else"}, uris);
++                    sch.erase(attr_else);
++                }
++            }
++            sch.erase(attr);
++        }
++    }
++};
++
++class string : public schema
++{
++    std::pair<bool, size_t> maxLength_{false, 0};
++    std::pair<bool, size_t> minLength_{false, 0};
++
++#ifndef NO_STD_REGEX
++    std::pair<bool, REGEX_NAMESPACE::regex> pattern_{false, REGEX_NAMESPACE::regex()};
++    std::string patternString_;
++#endif
++
++    std::pair<bool, std::string> format_;
++    std::tuple<bool, std::string, std::string> content_{false, "", ""};
++
++    std::size_t utf8_length(const std::string &s) const
++    {
++        size_t len = 0;
++        for (auto c : s)
++            if ((c & 0xc0) != 0x80)
++                len++;
++        return len;
++    }
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &, error_handler &e) const override
++    {
++        if (minLength_.first)
++        {
++            if (utf8_length(instance.get<std::string>()) < minLength_.second)
++            {
++                std::ostringstream s;
++                s << "instance is too short as per minLength:" << minLength_.second;
++                e.error(ptr, instance, s.str());
++            }
++        }
++
++        if (maxLength_.first)
++        {
++            if (utf8_length(instance.get<std::string>()) > maxLength_.second)
++            {
++                std::ostringstream s;
++                s << "instance is too long as per maxLength: " << maxLength_.second;
++                e.error(ptr, instance, s.str());
++            }
++        }
++
++        if (std::get<0>(content_))
++        {
++            if (root_->content_check() == nullptr)
++                e.error(ptr, instance,
++                        std::string("a content checker was not provided but a contentEncoding or contentMediaType for "
++                                    "this string have been present: '") +
++                            std::get<1>(content_) + "' '" + std::get<2>(content_) + "'");
++            else
++            {
++                try
++                {
++                    root_->content_check()(std::get<1>(content_), std::get<2>(content_), instance);
++                }
++                catch (const std::exception &ex)
++                {
++                    e.error(ptr, instance, std::string("content-checking failed: ") + ex.what());
++                }
++            }
++        }
++        else if (instance.type() == json::value_t::binary)
++        {
++            e.error(ptr, instance, "expected string, but get binary data");
++        }
++
++        if (instance.type() != json::value_t::string)
++        {
++            return; // next checks only for strings
++        }
++
++#ifndef NO_STD_REGEX
++        if (pattern_.first && !REGEX_NAMESPACE::regex_search(instance.get<std::string>(), pattern_.second))
++            e.error(ptr, instance, "instance does not match regex pattern: " + patternString_);
++#endif
++
++        if (format_.first)
++        {
++            if (root_->format_check() == nullptr)
++                e.error(
++                    ptr, instance,
++                    std::string("a format checker was not provided but a format keyword for this string is present: ") +
++                        format_.second);
++            else
++            {
++                try
++                {
++                    root_->format_check()(format_.second, instance.get<std::string>());
++                }
++                catch (const std::exception &ex)
++                {
++                    e.error(ptr, instance, std::string("format-checking failed: ") + ex.what());
++                }
++            }
++        }
++    }
++
++  public:
++    string(json &sch, root_schema *root) : schema(root)
++    {
++        auto attr = sch.find("maxLength");
++        if (attr != sch.end())
++        {
++            maxLength_ = {true, attr.value().get<size_t>()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("minLength");
++        if (attr != sch.end())
++        {
++            minLength_ = {true, attr.value().get<size_t>()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("contentEncoding");
++        if (attr != sch.end())
++        {
++            std::get<0>(content_) = true;
++            std::get<1>(content_) = attr.value().get<std::string>();
++
++            // special case for nlohmann::json-binary-types
++            //
++            // https://github.com/pboettch/json-schema-validator/pull/114
++            //
++            // We cannot use explicitly in a schema: {"type": "binary"} or
++            // "type": ["binary", "number"] we have to be implicit. For a
++            // schema where "contentEncoding" is set to "binary", an instance
++            // of type json::value_t::binary is accepted. If a
++            // contentEncoding-callback has to be provided and is called
++            // accordingly. For encoding=binary, no other type validations are done
++
++            sch.erase(attr);
++        }
++
++        attr = sch.find("contentMediaType");
++        if (attr != sch.end())
++        {
++            std::get<0>(content_) = true;
++            std::get<2>(content_) = attr.value().get<std::string>();
++
++            sch.erase(attr);
++        }
++
++        if (std::get<0>(content_) == true && root_->content_check() == nullptr)
++        {
++            throw std::invalid_argument{
++                "schema contains contentEncoding/contentMediaType but content checker was not set"};
++        }
++
++#ifndef NO_STD_REGEX
++        attr = sch.find("pattern");
++        if (attr != sch.end())
++        {
++            patternString_ = attr.value().get<std::string>();
++            pattern_ = {true,
++                        REGEX_NAMESPACE::regex(attr.value().get<std::string>(), REGEX_NAMESPACE::regex::ECMAScript)};
++            sch.erase(attr);
++        }
++#endif
++
++        attr = sch.find("format");
++        if (attr != sch.end())
++        {
++            if (root_->format_check() == nullptr)
++                throw std::invalid_argument{
++                    "a format checker was not provided but a format keyword for this string is present: " +
++                    format_.second};
++
++            format_ = {true, attr.value().get<std::string>()};
++            sch.erase(attr);
++        }
++    }
++};
++
++template <typename T> class numeric : public schema
++{
++    std::pair<bool, T> maximum_{false, 0};
++    std::pair<bool, T> minimum_{false, 0};
++
++    bool exclusiveMaximum_ = false;
++    bool exclusiveMinimum_ = false;
++
++    std::pair<bool, json::number_float_t> multipleOf_{false, 0};
++
++    // multipleOf - if the remainder of the division is 0 -> OK
++    bool violates_multiple_of(T x) const
++    {
++        double res = std::remainder(x, multipleOf_.second);
++        double eps = std::nextafter(x, 0) - static_cast<double>(x);
++        return std::fabs(res) > std::fabs(eps);
++    }
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &, error_handler &e) const override
++    {
++        T value = instance; // conversion of json to value_type
++
++        if (multipleOf_.first && value != 0) // zero is multiple of everything
++            if (violates_multiple_of(value))
++                e.error(ptr, instance, "instance is not a multiple of " + std::to_string(multipleOf_.second));
++
++        if (maximum_.first)
++            if ((exclusiveMaximum_ && value >= maximum_.second) || value > maximum_.second)
++                e.error(ptr, instance, "instance exceeds maximum of " + std::to_string(maximum_.second));
++
++        if (minimum_.first)
++            if ((exclusiveMinimum_ && value <= minimum_.second) || value < minimum_.second)
++                e.error(ptr, instance, "instance is below minimum of " + std::to_string(minimum_.second));
++    }
++
++  public:
++    numeric(const json &sch, root_schema *root, std::set<std::string> &kw) : schema(root)
++    {
++        auto attr = sch.find("maximum");
++        if (attr != sch.end())
++        {
++            maximum_ = {true, attr.value().get<T>()};
++            kw.insert("maximum");
++        }
++
++        attr = sch.find("minimum");
++        if (attr != sch.end())
++        {
++            minimum_ = {true, attr.value().get<T>()};
++            kw.insert("minimum");
++        }
++
++        attr = sch.find("exclusiveMaximum");
++        if (attr != sch.end())
++        {
++            exclusiveMaximum_ = true;
++            maximum_ = {true, attr.value().get<T>()};
++            kw.insert("exclusiveMaximum");
++        }
++
++        attr = sch.find("exclusiveMinimum");
++        if (attr != sch.end())
++        {
++            exclusiveMinimum_ = true;
++            minimum_ = {true, attr.value().get<T>()};
++            kw.insert("exclusiveMinimum");
++        }
++
++        attr = sch.find("multipleOf");
++        if (attr != sch.end())
++        {
++            multipleOf_ = {true, attr.value().get<json::number_float_t>()};
++            kw.insert("multipleOf");
++        }
++    }
++};
++
++class null : public schema
++{
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &, error_handler &e) const override
++    {
++        if (!instance.is_null())
++            e.error(ptr, instance, "expected to be null");
++    }
++
++  public:
++    null(json &, root_schema *root) : schema(root)
++    {
++    }
++};
++
++class boolean_type : public schema
++{
++    void validate(const json::json_pointer &, const json &, json_patch &, error_handler &) const override
++    {
++    }
++
++  public:
++    boolean_type(json &, root_schema *root) : schema(root)
++    {
++    }
++};
++
++class boolean : public schema
++{
++    bool true_;
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &, error_handler &e) const override
++    {
++        if (!true_)
++        { // false schema
++            // empty array
++            // switch (instance.type()) {
++            // case json::value_t::array:
++            //	if (instance.size() != 0) // valid false-schema
++            //		e.error(ptr, instance, "false-schema required empty array");
++            //	return;
++            //}
++
++            e.error(ptr, instance, "instance invalid as per false-schema");
++        }
++    }
++
++  public:
++    boolean(json &sch, root_schema *root) : schema(root), true_(sch)
++    {
++    }
++};
++
++class required : public schema
++{
++    const std::vector<std::string> required_;
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &,
++                  error_handler &e) const override final
++    {
++        for (auto &r : required_)
++            if (instance.find(r) == instance.end())
++                e.error(ptr, instance, "required property '" + r + "' not found in object as a dependency");
++    }
++
++  public:
++    required(const std::vector<std::string> &r, root_schema *root) : schema(root), required_(r)
++    {
++    }
++};
++
++class object : public schema
++{
++    std::pair<bool, size_t> maxProperties_{false, 0};
++    std::pair<bool, size_t> minProperties_{false, 0};
++    std::vector<std::string> required_;
++
++    std::map<std::string, std::shared_ptr<schema>> properties_;
++#ifndef NO_STD_REGEX
++    std::vector<std::pair<REGEX_NAMESPACE::regex, std::shared_ptr<schema>>> patternProperties_;
++#endif
++    std::shared_ptr<schema> additionalProperties_;
++
++    std::map<std::string, std::shared_ptr<schema>> dependencies_;
++
++    std::shared_ptr<schema> propertyNames_;
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch,
++                  error_handler &e) const override
++    {
++        if (maxProperties_.first && instance.size() > maxProperties_.second)
++            e.error(ptr, instance, "too many properties");
++
++        if (minProperties_.first && instance.size() < minProperties_.second)
++            e.error(ptr, instance, "too few properties");
++
++        for (auto &r : required_)
++            if (instance.find(r) == instance.end())
++                e.error(ptr, instance, "required property '" + r + "' not found in object");
++
++        // for each property in instance
++        for (auto &p : instance.items())
++        {
++            if (propertyNames_)
++                propertyNames_->validate(ptr, p.key(), patch, e);
++
++            bool a_prop_or_pattern_matched = false;
++            auto schema_p = properties_.find(p.key());
++            // check if it is in "properties"
++            if (schema_p != properties_.end())
++            {
++                a_prop_or_pattern_matched = true;
++                schema_p->second->validate(ptr / p.key(), p.value(), patch, e);
++            }
++
++#ifndef NO_STD_REGEX
++            // check all matching patternProperties
++            for (auto &schema_pp : patternProperties_)
++                if (REGEX_NAMESPACE::regex_search(p.key(), schema_pp.first))
++                {
++                    a_prop_or_pattern_matched = true;
++                    schema_pp.second->validate(ptr / p.key(), p.value(), patch, e);
++                }
++#endif
++
++            // check additionalProperties as a last resort
++            if (!a_prop_or_pattern_matched && additionalProperties_)
++            {
++                first_error_handler additional_prop_err;
++                additionalProperties_->validate(ptr / p.key(), p.value(), patch, additional_prop_err);
++                if (additional_prop_err)
++                    e.error(ptr, instance,
++                            "validation failed for additional property '" + p.key() +
++                                "': " + additional_prop_err.message_);
++            }
++        }
++
++        // reverse search
++        for (auto const &prop : properties_)
++        {
++            const auto finding = instance.find(prop.first);
++            if (instance.end() == finding)
++            { // if the prop is not in the instance
++                const auto &defaultValue = prop.second->defaultValue(ptr, instance, e);
++                if (!defaultValue.is_null())
++                { // if default value is available
++                    patch.add((ptr / prop.first), defaultValue);
++                }
++            }
++        }
++
++        for (auto &dep : dependencies_)
++        {
++            auto prop = instance.find(dep.first);
++            if (prop != instance.end()) // if dependency-property is present in instance
++                dep.second->validate(ptr / dep.first, instance, patch, e); // validate
++        }
++    }
++
++  public:
++    object(json &sch, root_schema *root, const std::vector<nlohmann::json_uri> &uris) : schema(root)
++    {
++        auto attr = sch.find("maxProperties");
++        if (attr != sch.end())
++        {
++            maxProperties_ = {true, attr.value().get<size_t>()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("minProperties");
++        if (attr != sch.end())
++        {
++            minProperties_ = {true, attr.value().get<size_t>()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("required");
++        if (attr != sch.end())
++        {
++            required_ = attr.value().get<std::vector<std::string>>();
++            sch.erase(attr);
++        }
++
++        attr = sch.find("properties");
++        if (attr != sch.end())
++        {
++            for (auto prop : attr.value().items())
++                properties_.insert(
++                    std::make_pair(prop.key(), schema::make(prop.value(), root, {"properties", prop.key()}, uris)));
++            sch.erase(attr);
++        }
++
++#ifndef NO_STD_REGEX
++        attr = sch.find("patternProperties");
++        if (attr != sch.end())
++        {
++            for (auto prop : attr.value().items())
++                patternProperties_.push_back(
++                    std::make_pair(REGEX_NAMESPACE::regex(prop.key(), REGEX_NAMESPACE::regex::ECMAScript),
++                                   schema::make(prop.value(), root, {prop.key()}, uris)));
++            sch.erase(attr);
++        }
++#endif
++
++        attr = sch.find("additionalProperties");
++        if (attr != sch.end())
++        {
++            additionalProperties_ = schema::make(attr.value(), root, {"additionalProperties"}, uris);
++            sch.erase(attr);
++        }
++
++        attr = sch.find("dependencies");
++        if (attr != sch.end())
++        {
++            for (auto &dep : attr.value().items())
++                switch (dep.value().type())
++                {
++                case json::value_t::array:
++                    dependencies_.emplace(
++                        dep.key(), std::make_shared<required>(dep.value().get<std::vector<std::string>>(), root));
++                    break;
++
++                default:
++                    dependencies_.emplace(dep.key(),
++                                          schema::make(dep.value(), root, {"dependencies", dep.key()}, uris));
++                    break;
++                }
++            sch.erase(attr);
++        }
++
++        attr = sch.find("propertyNames");
++        if (attr != sch.end())
++        {
++            propertyNames_ = schema::make(attr.value(), root, {"propertyNames"}, uris);
++            sch.erase(attr);
++        }
++    }
++};
++
++class array : public schema
++{
++    std::pair<bool, size_t> maxItems_{false, 0};
++    std::pair<bool, size_t> minItems_{false, 0};
++    bool uniqueItems_ = false;
++
++    std::shared_ptr<schema> items_schema_;
++
++    std::vector<std::shared_ptr<schema>> items_;
++    std::shared_ptr<schema> additionalItems_;
++
++    std::shared_ptr<schema> contains_;
++
++    void validate(const json::json_pointer &ptr, const json &instance, json_patch &patch,
++                  error_handler &e) const override
++    {
++        if (maxItems_.first && instance.size() > maxItems_.second)
++            e.error(ptr, instance, "array has too many items");
++
++        if (minItems_.first && instance.size() < minItems_.second)
++            e.error(ptr, instance, "array has too few items");
++
++        if (uniqueItems_)
++        {
++            for (auto it = instance.cbegin(); it != instance.cend(); ++it)
++            {
++                auto v = std::find(it + 1, instance.end(), *it);
++                if (v != instance.end())
++                    e.error(ptr, instance, "items have to be unique for this array");
++            }
++        }
++
++        size_t index = 0;
++        if (items_schema_)
++            for (auto &i : instance)
++            {
++                items_schema_->validate(ptr / index, i, patch, e);
++                index++;
++            }
++        else
++        {
++            auto item = items_.cbegin();
++            for (auto &i : instance)
++            {
++                std::shared_ptr<schema> item_validator;
++                if (item == items_.cend())
++                    item_validator = additionalItems_;
++                else
++                {
++                    item_validator = *item;
++                    item++;
++                }
++
++                if (!item_validator)
++                    break;
++
++                item_validator->validate(ptr / index, i, patch, e);
++            }
++        }
++
++        if (contains_)
++        {
++            bool contained = false;
++            for (auto &item : instance)
++            {
++                first_error_handler local_e;
++                contains_->validate(ptr, item, patch, local_e);
++                if (!local_e)
++                {
++                    contained = true;
++                    break;
++                }
++            }
++            if (!contained)
++                e.error(ptr, instance, "array does not contain required element as per 'contains'");
++        }
++    }
++
++  public:
++    array(json &sch, root_schema *root, const std::vector<nlohmann::json_uri> &uris) : schema(root)
++    {
++        auto attr = sch.find("maxItems");
++        if (attr != sch.end())
++        {
++            maxItems_ = {true, attr.value().get<size_t>()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("minItems");
++        if (attr != sch.end())
++        {
++            minItems_ = {true, attr.value().get<size_t>()};
++            sch.erase(attr);
++        }
++
++        attr = sch.find("uniqueItems");
++        if (attr != sch.end())
++        {
++            uniqueItems_ = attr.value().get<bool>();
++            sch.erase(attr);
++        }
++
++        attr = sch.find("items");
++        if (attr != sch.end())
++        {
++
++            if (attr.value().type() == json::value_t::array)
++            {
++                size_t c = 0;
++                for (auto &subsch : attr.value())
++                    items_.push_back(schema::make(subsch, root, {"items", std::to_string(c++)}, uris));
++
++                auto attr_add = sch.find("additionalItems");
++                if (attr_add != sch.end())
++                {
++                    additionalItems_ = schema::make(attr_add.value(), root, {"additionalItems"}, uris);
++                    sch.erase(attr_add);
++                }
++            }
++            else if (attr.value().type() == json::value_t::object || attr.value().type() == json::value_t::boolean)
++                items_schema_ = schema::make(attr.value(), root, {"items"}, uris);
++
++            sch.erase(attr);
++        }
++
++        attr = sch.find("contains");
++        if (attr != sch.end())
++        {
++            contains_ = schema::make(attr.value(), root, {"contains"}, uris);
++            sch.erase(attr);
++        }
++    }
++};
++
++std::shared_ptr<schema> type_schema::make(json &schema, json::value_t type, root_schema *root,
++                                          const std::vector<nlohmann::json_uri> &uris, std::set<std::string> &kw)
++{
++    switch (type)
++    {
++    case json::value_t::null:
++        return std::make_shared<null>(schema, root);
++
++    case json::value_t::number_unsigned:
++    case json::value_t::number_integer:
++        return std::make_shared<numeric<json::number_integer_t>>(schema, root, kw);
++    case json::value_t::number_float:
++        return std::make_shared<numeric<json::number_float_t>>(schema, root, kw);
++    case json::value_t::string:
++        return std::make_shared<string>(schema, root);
++    case json::value_t::boolean:
++        return std::make_shared<boolean_type>(schema, root);
++    case json::value_t::object:
++        return std::make_shared<object>(schema, root, uris);
++    case json::value_t::array:
++        return std::make_shared<array>(schema, root, uris);
++
++    case json::value_t::discarded: // not a real type - silence please
++        break;
++
++    case json::value_t::binary:
++        break;
++    }
++    return nullptr;
++}
++} // namespace
++
++namespace
++{
++
++std::shared_ptr<schema> schema::make(json &schema, root_schema *root, const std::vector<std::string> &keys,
++                                     std::vector<nlohmann::json_uri> uris)
++{
++    // remove URIs which contain plain name identifiers, as sub-schemas cannot be referenced
++    for (auto uri = uris.begin(); uri != uris.end();)
++        if (uri->identifier() != "")
++            uri = uris.erase(uri);
++        else
++            uri++;
++
++    // append to all URIs the keys for this sub-schema
++    for (auto &key : keys)
++        for (auto &uri : uris)
++            uri = uri.append(key);
++
++    std::shared_ptr<::schema> sch;
++
++    // boolean schema
++    if (schema.type() == json::value_t::boolean)
++        sch = std::make_shared<boolean>(schema, root);
++    else if (schema.type() == json::value_t::object)
++    {
++
++        auto attr = schema.find("$id"); // if $id is present, this schema can be referenced by this ID
++                                        // as an additional URI
++        if (attr != schema.end())
++        {
++            if (std::find(uris.begin(), uris.end(), attr.value().get<std::string>()) == uris.end())
++                uris.push_back(uris.back().derive(
++                    attr.value().get<std::string>())); // so add it to the list if it is not there already
++            schema.erase(attr);
++        }
++
++        attr = schema.find("definitions");
++        if (attr != schema.end())
++        {
++            for (auto &def : attr.value().items())
++                schema::make(def.value(), root, {"definitions", def.key()}, uris);
++            schema.erase(attr);
++        }
++
++        attr = schema.find("$ref");
++        if (attr != schema.end())
++        { // this schema is a reference
++            // the last one on the uri-stack is the last id seen before coming here,
++            // so this is the origial URI for this reference, the $ref-value has thus be resolved from it
++            auto id = uris.back().derive(attr.value().get<std::string>());
++            sch = root->get_or_create_ref(id);
++            schema.erase(attr);
++        }
++        else
++        {
++            sch = std::make_shared<type_schema>(schema, root, uris);
++        }
++
++        schema.erase("$schema");
++        schema.erase("default");
++        schema.erase("title");
++        schema.erase("description");
++    }
++    else
++    {
++        throw std::invalid_argument("invalid JSON-type for a schema for " + uris[0].to_string() +
++                                    ", expected: boolean or object");
++    }
++
++    for (auto &uri : uris)
++    { // for all URIs this schema is referenced by
++        root->insert(uri, sch);
++
++        if (schema.type() == json::value_t::object)
++            for (auto &u : schema.items())
++                root->insert_unknown_keyword(uri, u.key(), u.value()); // insert unknown keywords for later reference
++    }
++    return sch;
++}
++
++class throwing_error_handler : public error_handler
++{
++    void error(const json::json_pointer &ptr, const json &instance, const std::string &message) override
++    {
++        throw std::invalid_argument(std::string("At ") + ptr.to_string() + " of " + instance.dump() + " - " + message +
++                                    "\n");
++    }
++};
++
++} // namespace
++
++namespace nlohmann
++{
++namespace json_schema
++{
++
++json_validator::json_validator(schema_loader loader, format_checker format, content_checker content)
++    : root_(std::unique_ptr<root_schema>(new root_schema(std::move(loader), std::move(format), std::move(content))))
++{
++}
++
++json_validator::json_validator(const json &schema, schema_loader loader, format_checker format, content_checker content)
++    : json_validator(std::move(loader), std::move(format), std::move(content))
++{
++    set_root_schema(schema);
++}
++
++json_validator::json_validator(json &&schema, schema_loader loader, format_checker format, content_checker content)
++
++    : json_validator(std::move(loader), std::move(format), std::move(content))
++{
++    set_root_schema(std::move(schema));
++}
++
++// move constructor, destructor and move assignment operator can be defaulted here
++// where root_schema is a complete type
++json_validator::json_validator(json_validator &&) = default;
++json_validator::~json_validator() = default;
++json_validator &json_validator::operator=(json_validator &&) = default;
++
++void json_validator::set_root_schema(const json &schema)
++{
++    root_->set_root_schema(schema);
++}
++
++void json_validator::set_root_schema(json &&schema)
++{
++    root_->set_root_schema(std::move(schema));
++}
++
++json json_validator::validate(const json &instance) const
++{
++    throwing_error_handler err;
++    return validate(instance, err);
++}
++
++json json_validator::validate(const json &instance, error_handler &err, const json_uri &initial_uri) const
++{
++    json::json_pointer ptr;
++    json_patch patch;
++    root_->validate(ptr, instance, patch, err, initial_uri);
++    return patch;
++}
++
++} // namespace json_schema
++} // namespace nlohmann
+diff --git a/src/nlohmann/string-format-check.cpp b/src/nlohmann/string-format-check.cpp
+new file mode 100644
+index 00000000000..e175c9f050e
+--- /dev/null
++++ b/src/nlohmann/string-format-check.cpp
+@@ -0,0 +1,388 @@
++/*
++ * JSON schema validator for JSON for modern C++
++ *
++ * Copyright (c) 2016-2019 Patrick Boettcher <p@yai.se>.
++ *
++ * SPDX-License-Identifier: MIT
++ *
++ */
++#include <nlohmann/json-schema.hpp>
++
++#include <algorithm>
++#include <exception>
++#include <iostream>
++#include <regex>
++#include <sstream>
++#include <string>
++#include <utility>
++#include <vector>
++
++/**
++ * Many of the RegExes are from @see http://jmrware.com/articles/2009/uri_regexp/URI_regex.html
++ */
++
++namespace
++{
++template <typename T> void range_check(const T value, const T min, const T max)
++{
++    if (!((value >= min) && (value <= max)))
++    {
++        std::stringstream out;
++        out << "Value " << value << " should be in interval [" << min << "," << max << "] but is not!";
++        throw std::invalid_argument(out.str());
++    }
++}
++
++/** @see date_time_check */
++void rfc3339_date_check(const std::string &value)
++{
++    const static std::regex dateRegex{R"(^([0-9]{4})\-([0-9]{2})\-([0-9]{2})$)"};
++
++    std::smatch matches;
++    if (!std::regex_match(value, matches, dateRegex))
++    {
++        throw std::invalid_argument(value + " is not a date string according to RFC 3339.");
++    }
++
++    const auto year = std::stoi(matches[1].str());
++    const auto month = std::stoi(matches[2].str());
++    const auto mday = std::stoi(matches[3].str());
++
++    const auto isLeapYear = (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
++
++    range_check(month, 1, 12);
++    if (month == 2)
++    {
++        range_check(mday, 1, isLeapYear ? 29 : 28);
++    }
++    else if (month <= 7)
++    {
++        range_check(mday, 1, month % 2 == 0 ? 30 : 31);
++    }
++    else
++    {
++        range_check(mday, 1, month % 2 == 0 ? 31 : 30);
++    }
++}
++
++/** @see date_time_check */
++void rfc3339_time_check(const std::string &value)
++{
++    const static std::regex timeRegex{
++        R"(^([0-9]{2})\:([0-9]{2})\:([0-9]{2})(\.[0-9]+)?(?:[Zz]|((?:\+|\-)[0-9]{2})\:([0-9]{2}))$)"};
++
++    std::smatch matches;
++    if (!std::regex_match(value, matches, timeRegex))
++    {
++        throw std::invalid_argument(value + " is not a time string according to RFC 3339.");
++    }
++
++    auto hour = std::stoi(matches[1].str());
++    auto minute = std::stoi(matches[2].str());
++    auto second = std::stoi(matches[3].str());
++    // const auto secfrac      = std::stof( matches[4].str() );
++
++    range_check(hour, 0, 23);
++    range_check(minute, 0, 59);
++
++    int offsetHour = 0, offsetMinute = 0;
++
++    /* don't check the numerical offset if time zone is specified as 'Z' */
++    if (!matches[5].str().empty())
++    {
++        offsetHour = std::stoi(matches[5].str());
++        offsetMinute = std::stoi(matches[6].str());
++
++        range_check(offsetHour, -23, 23);
++        range_check(offsetMinute, 0, 59);
++        if (offsetHour < 0)
++            offsetMinute *= -1;
++    }
++
++    /**
++     * @todo Could be made more exact by querying a leap second database and choosing the
++     *       correct maximum in {58,59,60}. This current solution might match some invalid dates
++     *       but it won't lead to false negatives. This only works if we know the full date, however
++     */
++
++    auto day_minutes = hour * 60 + minute - (offsetHour * 60 + offsetMinute);
++    if (day_minutes < 0)
++        day_minutes += 60 * 24;
++    hour = day_minutes % 24;
++    minute = day_minutes / 24;
++
++    if (hour == 23 && minute == 59)
++        range_check(second, 0, 60); // possible leap-second
++    else
++        range_check(second, 0, 59);
++}
++
++/**
++ * @see https://tools.ietf.org/html/rfc3339#section-5.6
++ *
++ * @verbatim
++ * date-fullyear   = 4DIGIT
++ * date-month      = 2DIGIT  ; 01-12
++ * date-mday       = 2DIGIT  ; 01-28, 01-29, 01-30, 01-31 based on
++ *                          ; month/year
++ * time-hour       = 2DIGIT  ; 00-23
++ * time-minute     = 2DIGIT  ; 00-59
++ * time-second     = 2DIGIT  ; 00-58, 00-59, 00-60 based on leap second
++ *                          ; rules
++ * time-secfrac    = "." 1*DIGIT
++ * time-numoffset  = ("+" / "-") time-hour ":" time-minute
++ * time-offset     = "Z" / time-numoffset
++ *
++ * partial-time    = time-hour ":" time-minute ":" time-second
++ *                  [time-secfrac]
++ * full-date       = date-fullyear "-" date-month "-" date-mday
++ * full-time       = partial-time time-offset
++ *
++ * date-time       = full-date "T" full-time
++ * @endverbatim
++ * NOTE: Per [ABNF] and ISO8601, the "T" and "Z" characters in this
++ *       syntax may alternatively be lower case "t" or "z" respectively.
++ */
++void rfc3339_date_time_check(const std::string &value)
++{
++    const static std::regex dateTimeRegex{
++        R"(^([0-9]{4}\-[0-9]{2}\-[0-9]{2})[Tt]([0-9]{2}\:[0-9]{2}\:[0-9]{2}(?:\.[0-9]+)?(?:[Zz]|(?:\+|\-)[0-9]{2}\:[0-9]{2}))$)"};
++
++    std::smatch matches;
++    if (!std::regex_match(value, matches, dateTimeRegex))
++    {
++        throw std::invalid_argument(value + " is not a date-time string according to RFC 3339.");
++    }
++
++    rfc3339_date_check(matches[1].str());
++    rfc3339_time_check(matches[2].str());
++}
++
++const std::string decOctet{R"((?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))"}; // matches numbers 0-255
++const std::string ipv4Address{"(?:" + decOctet + R"(\.){3})" + decOctet};
++const std::string h16{R"([0-9A-Fa-f]{1,4})"};
++const std::string h16Left{"(?:" + h16 + ":)"};
++const std::string ipv6Address{"(?:"
++                              "(?:" +
++                              h16Left +
++                              "{6}"
++                              "|::" +
++                              h16Left +
++                              "{5}"
++                              "|(?:" +
++                              h16 + ")?::" + h16Left +
++                              "{4}"
++                              "|(?:" +
++                              h16Left + "{0,1}" + h16 + ")?::" + h16Left +
++                              "{3}"
++                              "|(?:" +
++                              h16Left + "{0,2}" + h16 + ")?::" + h16Left +
++                              "{2}"
++                              "|(?:" +
++                              h16Left + "{0,3}" + h16 + ")?::" + h16Left + "|(?:" + h16Left + "{0,4}" + h16 +
++                              ")?::"
++                              ")(?:" +
++                              h16Left + h16 + "|" + ipv4Address +
++                              ")"
++                              "|(?:" +
++                              h16Left + "{0,5}" + h16 + ")?::" + h16 + "|(?:" + h16Left + "{0,6}" + h16 +
++                              ")?::"
++                              ")"};
++const std::string ipvFuture{R"([Vv][0-9A-Fa-f]+\.[A-Za-z0-9\-._~!$&'()*+,;=:]+)"};
++const std::string regName{R"((?:[A-Za-z0-9\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)"};
++const std::string host{"(?:"
++                       R"(\[(?:)" +
++                       ipv6Address + "|" + ipvFuture + R"()\])" + "|" + ipv4Address + "|" + regName + ")"};
++
++const std::string uuid{R"([0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12})"};
++
++// from http://stackoverflow.com/questions/106179/regular-expression-to-match-dns-hostname-or-ip-address
++const std::string hostname{
++    R"(^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$)"};
++
++/**
++ * @see https://tools.ietf.org/html/rfc5322#section-4.1
++ *
++ * @verbatim
++ * atom            =   [CFWS] 1*atext [CFWS]
++ * word            =   atom / quoted-string
++ * phrase          =   1*word / obs-phrase
++ * obs-FWS         =   1*WSP *(CRLF 1*WSP)
++ * FWS             =   ([*WSP CRLF] 1*WSP) /  obs-FWS
++ *                                       ; Folding white space
++ * ctext           =   %d33-39 /          ; Printable US-ASCII
++ *                     %d42-91 /          ;  characters not including
++ *                     %d93-126 /         ;  "(", ")", or "\"
++ *                     obs-ctext
++ * ccontent        =   ctext / quoted-pair / comment
++ * comment         =   "(" *([FWS] ccontent) [FWS] ")"
++ * CFWS            =   (1*([FWS] comment) [FWS]) / FWS
++ * obs-local-part  =   word *("." word)
++ * obs-domain      =   atom *("." atom)
++ * obs-dtext       =   obs-NO-WS-CTL / quoted-pair
++ * quoted-pair     =   ("\" (VCHAR / WSP)) / obs-qp
++ * obs-NO-WS-CTL   =   %d1-8 /            ; US-ASCII control
++ *                     %d11 /             ;  characters that do not
++ *                     %d12 /             ;  include the carriage
++ *                     %d14-31 /          ;  return, line feed, and
++ *                     %d127              ;  white space characters
++ * obs-ctext       =   obs-NO-WS-CTL
++ * obs-qtext       =   obs-NO-WS-CTL
++ * obs-utext       =   %d0 / obs-NO-WS-CTL / VCHAR
++ * obs-qp          =   "\" (%d0 / obs-NO-WS-CTL / LF / CR)
++ * obs-body        =   *((*LF *CR *((%d0 / text) *LF *CR)) / CRLF)
++ * obs-unstruct    =   *((*LF *CR *(obs-utext *LF *CR)) / FWS)
++ * obs-phrase      =   word *(word / "." / CFWS)
++ * obs-phrase-list =   [phrase / CFWS] *("," [phrase / CFWS])
++ * qtext           =   %d33 /             ; Printable US-ASCII
++ *                     %d35-91 /          ;  characters not including
++ *                     %d93-126 /         ;  "\" or the quote character
++ *                     obs-qtext
++ * qcontent        =   qtext / quoted-pair
++ * quoted-string   =   [CFWS]
++ *                     DQUOTE *([FWS] qcontent) [FWS] DQUOTE
++ *                     [CFWS]
++ * atext           =   ALPHA / DIGIT /    ; Printable US-ASCII
++ *                     "!" / "#" /        ;  characters not including
++ *                     "$" / "%" /        ;  specials.  Used for atoms.
++ *                     "&" / "'" /
++ *                     "*" / "+" /
++ *                     "-" / "/" /
++ *                     "=" / "?" /
++ *                     "^" / "_" /
++ *                     "`" / "{" /
++ *                     "|" / "}" /
++ *                     "~"
++ * dot-atom-text   =   1*atext *("." 1*atext)
++ * dot-atom        =   [CFWS] dot-atom-text [CFWS]
++ * addr-spec       =   local-part "@" domain
++ * local-part      =   dot-atom / quoted-string / obs-local-part
++ * domain          =   dot-atom / domain-literal / obs-domain
++ * domain-literal  =   [CFWS] "[" *([FWS] dtext) [FWS] "]" [CFWS]
++ * dtext           =   %d33-90 /          ; Printable US-ASCII
++ *                     %d94-126 /         ;  characters not including
++ *                     obs-dtext          ;  "[", "]", or "\"
++ * @endverbatim
++ * @todo Currently don't have a working tool for this larger ABNF to generate a regex.
++ *       Other options:
++ *         - https://github.com/ldthomas/apg-6.3
++ *         - https://github.com/akr/abnf
++ *
++ * The problematic thing are the allowed whitespaces (even newlines) in the email.
++ * Ignoring those and starting with
++ * @see https://stackoverflow.com/questions/13992403/regex-validation-of-email-addresses-according-to-rfc5321-rfc5322
++ * and trying to divide up the complicated regex into understandable ABNF definitions from rfc5322 yields:
++ */
++const std::string obsnowsctl{R"([\x01-\x08\x0b\x0c\x0e-\x1f\x7f])"};
++const std::string obsqp{R"(\\[\x01-\x09\x0b\x0c\x0e-\x7f])"};
++const std::string qtext{R"((?:[\x21\x23-\x5b\x5d-\x7e]|)" + obsnowsctl + ")"};
++const std::string dtext{R"([\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f])"};
++const std::string quotedString{R"("(?:)" + qtext + "|" + obsqp + R"()*")"};
++const std::string atext{R"([A-Za-z0-9!#$%&'*+/=?^_`{|}~-])"};
++const std::string domainLiteral{R"(\[(?:(?:)" + decOctet + R"()\.){3}(?:)" + decOctet +
++                                R"(|[A-Za-z0-9-]*[A-Za-z0-9]:(?:)" + dtext + "|" + obsqp + R"()+)\])"};
++
++const std::string dotAtom{"(?:" + atext + R"(+(?:\.)" + atext + "+)*)"};
++const std::string stackoverflowMagicPart{R"((?:[[:alnum:]](?:[[:alnum:]-]*[[:alnum:]])?\.)+)"
++                                         R"([[:alnum:]](?:[[:alnum:]-]*[[:alnum:]])?)"};
++const std::string email{"(?:" + dotAtom + "|" + quotedString + ")@(?:" + stackoverflowMagicPart + "|" + domainLiteral +
++                        ")"};
++} // namespace
++
++namespace nlohmann
++{
++namespace json_schema
++{
++/**
++ * Checks validity for built-ins by converting the definitions given as ABNF in the linked RFC from
++ * @see https://json-schema.org/understanding-json-schema/reference/string.html#built-in-formats
++ * into regular expressions using @see https://www.msweet.org/abnf/ and some manual editing.
++ *
++ * @see https://json-schema.org/latest/json-schema-validation.html
++ */
++void default_string_format_check(const std::string &format, const std::string &value)
++{
++    if (format == "date-time")
++    {
++        rfc3339_date_time_check(value);
++    }
++    else if (format == "date")
++    {
++        rfc3339_date_check(value);
++    }
++    else if (format == "time")
++    {
++        rfc3339_time_check(value);
++    }
++    else if (format == "email")
++    {
++        static const std::regex emailRegex{email};
++        if (!std::regex_match(value, emailRegex))
++        {
++            throw std::invalid_argument(value + " is not a valid email according to RFC 5322.");
++        }
++    }
++    else if (format == "hostname")
++    {
++        static const std::regex hostRegex{hostname};
++        if (!std::regex_match(value, hostRegex))
++        {
++            throw std::invalid_argument(value + " is not a valid hostname according to RFC 3986 Appendix A.");
++        }
++    }
++    else if (format == "ipv4")
++    {
++        const static std::regex ipv4Regex{"^" + ipv4Address + "$"};
++        if (!std::regex_match(value, ipv4Regex))
++        {
++            throw std::invalid_argument(value + " is not an IPv4 string according to RFC 2673.");
++        }
++    }
++    else if (format == "ipv6")
++    {
++        static const std::regex ipv6Regex{ipv6Address};
++        if (!std::regex_match(value, ipv6Regex))
++        {
++            throw std::invalid_argument(value + " is not an IPv6 string according to RFC 5954.");
++        }
++    }
++    else if (format == "uuid")
++    {
++        static const std::regex uuidRegex{uuid};
++        if (!std::regex_match(value, uuidRegex))
++        {
++            throw std::invalid_argument(value + " is not an uuid string according to RFC 4122.");
++        }
++    }
++    else if (format == "regex")
++    {
++        try
++        {
++            std::regex re(value, std::regex::ECMAScript);
++        }
++        catch (std::exception &exception)
++        {
++            throw exception;
++        }
++    }
++    else
++    {
++        /* yet unsupported JSON schema draft 7 built-ins */
++        static const std::vector<std::string> jsonSchemaStringFormatBuiltIns{
++            "date-time",     "time",         "date",          "email",
++            "idn-email",     "hostname",     "idn-hostname",  "ipv4",
++            "ipv6",          "uri",          "uri-reference", "iri",
++            "iri-reference", "uri-template", "json-pointer",  "relative-json-pointer",
++            "regex"};
++        if (std::find(jsonSchemaStringFormatBuiltIns.begin(), jsonSchemaStringFormatBuiltIns.end(), format) !=
++            jsonSchemaStringFormatBuiltIns.end())
++        {
++            throw std::logic_error("JSON schema string format built-in " + format + " not yet supported. " +
++                                   "Please open an issue or use a custom format checker.");
++        }
++
++        throw std::logic_error("Don't know how to validate " + format);
++    }
++}
++} // namespace json_schema
++} // namespace nlohmann
+diff --git a/tests/lang/eval-okay-builtins-validateAsJSON.exp b/tests/lang/eval-okay-builtins-validateAsJSON.exp
+new file mode 100644
+index 00000000000..c31cde236be
+--- /dev/null
++++ b/tests/lang/eval-okay-builtins-validateAsJSON.exp
+@@ -0,0 +1 @@
++[ { success = false; value = "invalid JSON-type for a schema for  # , expected: boolean or object"; } { success = false; value = "At '/', required property 'name' not found in object"; } { success = false; value = "At '/name', required property 'last' not found in object"; } { success = true; value = { age = 24; name = { first = "Jane"; last = "Doe"; }; }; } ]
+diff --git a/tests/lang/eval-okay-builtins-validateAsJSON.nix b/tests/lang/eval-okay-builtins-validateAsJSON.nix
+new file mode 100644
+index 00000000000..3b863f64ea8
+--- /dev/null
++++ b/tests/lang/eval-okay-builtins-validateAsJSON.nix
+@@ -0,0 +1,28 @@
++let
++  schema = {
++    title = "A person";
++    properties = {
++      age = {
++        description = "Age of the person";
++        type = "number";
++        minimum = 1;
++        maximum = 200;
++      };
++      name = {
++        description = "Complete Name for the person";
++        first.type = "string";
++        last.type = "string";
++        required = [ "first" "last" ];
++        type = "object";
++      };
++    };
++    required = [ "name" "age" ];
++    type = "object";
++  };
++in
++[
++  (validateAsJSON "Invalid JSON schema" { })
++  (validateAsJSON schema { })
++  (validateAsJSON schema { age = 24; name.first = "Jane"; })
++  (validateAsJSON schema { age = 24; name.first = "Jane"; name.last = "Doe"; })
++]
