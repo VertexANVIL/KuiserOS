@@ -3,7 +3,7 @@ let
     inherit (builtins) attrNames attrValues elem readDir readFile mapAttrs pathExists;
     
     inherit (lib) fix fold flatten optionalAttrs filterAttrs genAttrs mapAttrs' mapAttrsToList splitString concatStrings
-        recursiveUpdate substring optional removePrefix removeSuffix nameValuePair makeExtensible makeOverridable hasAttr hasAttrByPath attrByPath assertMsg
+        recursiveUpdate substring optional removePrefix removeSuffix nameValuePair hasAttr hasAttrByPath attrByPath assertMsg
         genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames optionalPath optionalPathImport pathsToImportedAttrs recImportDirs mkProfileAttrs;
     inherit (lib.kuiser) pkgImport;
     inherit (baseInputs) nixpkgs unstable flake-utils;
@@ -308,7 +308,7 @@ in rec {
 
         pkgs = pkgSets.nixpkgs.${system};
         unstable = pkgSets.unstable.${system};
-    in makeOverridable nixosSystem {
+    in nixosSystem {
         inherit system;
 
         # note: failing to add imports in here

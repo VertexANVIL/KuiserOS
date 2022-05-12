@@ -1,7 +1,7 @@
 { pkgs, root }:
 {
     nativeBuildInputs = (with pkgs; [
-        python3 nix colmena nixos-generators
+        python3 nixFlakes colmena nixos-generators
         consul-template inix-helper
     ]) ++ (with pkgs.python3Packages; [
         black coloredlogs hvac icmplib
