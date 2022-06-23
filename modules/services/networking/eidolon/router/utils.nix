@@ -1,4 +1,4 @@
-{ config, lib, utils, regions ? {}, ... }:
+{ config, lib, utils, ... }:
 
 with lib;
 

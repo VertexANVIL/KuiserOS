@@ -1,4 +1,4 @@
-{ config, lib, pkgs, regions, ... }:
+{ config, lib, pkgs, nodes, ... }:
 
 with lib;
 
@@ -29,8 +29,19 @@ in {
     };
 
     config = {
-        _module.args.utils = (import ./utils.nix {
-            inherit config lib regions;
-        });
+        _module.args = let
+            # regions is just nodes bucketised by services.eidolon.region
+            regions = foldl' (prev: cur: let
+                name = cur.config.services.eidolon.region;
+                list = if hasAttr name prev then prev.${name} else [];
+            in prev // {
+                ${name} = list ++ [cur];
+            }) {} nodes;
+        in {
+            inherit regions;
+            utils = (import ./utils.nix {
+                inherit config lib regions;
+            });
+        };
     };
 }

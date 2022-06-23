@@ -2,11 +2,11 @@
 
 stdenv.mkDerivation rec {
     pname = "talosctl";
-    version = "0.13.2";
+    version = "1.0.0";
 
     src = fetchurl {
         url = "https://github.com/talos-systems/talos/releases/download/v${version}/talosctl-linux-amd64";
-        sha256 = "sha256-5dWVpcqTgTLJM564Zy3HKJW6coHVdxHcSHzm0+1CuGo=";
+        sha256 = "sha256-RiaXrYCcu4B8+2tLT8DwbxJ0DHEw+UsaQANfW8EtTbA=";
     };
 
     dontUnpack = true;

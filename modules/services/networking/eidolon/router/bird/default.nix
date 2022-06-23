@@ -109,7 +109,7 @@ let
     buildStaticRoutes = routes: v:
     concatStringsSep "\n" (forEach routes (addr: (
     let
-        prefsrc = if (addr.prefsrc != null && addr.prefsrc == "@underlay") then (utils.underlayAddr eidolon.region name v).address else null;
+        prefsrc = if (addr.prefsrc != null && addr.prefsrc == "@underlay") then (utils.underlayAddr v).address else null;
         routeStr = utils.addrToString addr;
     in
         if addr.blackhole then

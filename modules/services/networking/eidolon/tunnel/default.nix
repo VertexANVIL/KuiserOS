@@ -1,4 +1,4 @@
-{ config, lib, name, utils, regions ? {}, ... }:
+{ config, lib, name, utils, regions, ... }:
 
 with lib;
 
@@ -19,7 +19,7 @@ let
 
         node = if internal then
             assert (assertMsg (hasAttr regionName regions) "referenced region ${regionName} was not found!");
-            regions.${regionName}.bdr1 # TODO: shouldn't rely on the default router being called "bdr1"
+            elemAt regions.${regionName} 0 # TODO: shouldn't take the first node of the region
         else null;
     
         endpoint = if (peer.endpoint != null && node != null) then node.config.services.eidolon.tunnel.address else peer.endpoint;
@@ -139,7 +139,7 @@ in {
         services.eidolon.tunnel = {
             address = mkOption {
                 type = types.str;
-                default = if eidolon.region != null then (utils.underlayAddr eidolon.region name 6).address else null;
+                default = if eidolon.region != null then (utils.underlayAddr 6).address else null;
                 description = "The address to use to connect. Defaults to the underlay address.";
             };
 

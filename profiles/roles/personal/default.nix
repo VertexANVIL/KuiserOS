@@ -36,7 +36,7 @@ in mkProfile {
             '';
         };
 
-        #gvfs.enable = true;
+        gvfs.enable = true;
         fwupd.enable = true;
         udisks2.enable = true;
         earlyoom.enable = true;
