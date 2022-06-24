@@ -23,7 +23,7 @@ in
                 inputs.${n}.packages.${prev.system}.${n}
             );
         in (importNamed [
-            "colmena"
+            #"colmena"
             "nixos-generators"
         ]))
     ];

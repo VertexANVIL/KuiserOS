@@ -263,7 +263,7 @@ in rec {
         };
 
         # function to create our host attrs
-        mkHosts = { root, flat ? false, bases ? [], modifier ? (_: _) }: rec {
+        mkHosts = { root, flat ? false, bases ? [] }: rec {
             nixosConfigurations = mkNixosSystems {
                 inherit root system bases flat pkgSets;
                 inputs = baseInputs // inputs;
@@ -274,19 +274,15 @@ in rec {
                 inputs = baseInputs // inputs;
             };
 
-            colmena = mkColmenaHiveNodes system _internal.prefixedNodes;
-
-            # add checks for deploy-rs
-            # checks = mapAttrs (system: deployLib:
-            #     deployLib.deployChecks self.deploy
-            # ) deploy.lib;
-
-            _internal.prefixedNodes = modifier nixosConfigurations;
+            colmena = {
+                meta.nixpkgs = pkgSets.nixpkgs.${system};
+            } // (mapAttrs (_: v: {
+                inherit (v) _module;
+                nixpkgs.system = v.config.nixpkgs.system;
+            }) nixosConfigurations);
         };
     in recursiveUpdate repo (
-        if (generator != null) then
-            generator mkHosts
-        else mkHosts {
+        mkHosts {
             inherit root flat bases;
         }
     );
