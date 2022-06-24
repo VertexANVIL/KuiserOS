@@ -1,4 +1,4 @@
-{ config, lib, name, utils, regions, ... }:
+{ config, lib, name, tools, regions, ... }:
 
 with lib;
 
@@ -96,7 +96,7 @@ let
     preconf = (forEach resolved (peer:
     let
         f = filterAttrs (n: v: v != null) peer.providers;
-        count = utils.attrCount f;
+        count = tools.attrCount f;
         name = if (count > 0) then (head (attrNames f)) else null;
         provider = if (count > 0) then (head (attrValues f)) else null;
     in
@@ -118,7 +118,7 @@ let
         {
             networking.localCommands = with peer; ''
                 ip link show ${interface} > /dev/null 2>&1 && ip link delete ${interface}
-                ip link add name ${interface} type ip6tnl local ${cfg.address} remote ${endpoint} dev ${utils.underlay} mode any
+                ip link add name ${interface} type ip6tnl local ${cfg.address} remote ${endpoint} dev ${tools.underlay} mode any
                 ${optionalString (v4addr != null) ''ip address add ${v4addr} dev ${interface}''} 
 
                 ip link set ${interface} multicast on
@@ -139,7 +139,7 @@ in {
         services.eidolon.tunnel = {
             address = mkOption {
                 type = types.str;
-                default = if eidolon.region != null then (utils.underlayAddr 6).address else null;
+                default = if eidolon.region != null then (tools.underlayAddr 6).address else null;
                 description = "The address to use to connect. Defaults to the underlay address.";
             };
 
@@ -153,11 +153,11 @@ in {
 
     config = mkIf eidolon.enable {
         networking = mkMerge [(mkConfOpt ["networking"] {}) {
-            interfaces.${utils.underlay} = {
+            interfaces.${tools.underlay} = {
                 # create static routes in order to route tunnel traffic via the underlay interface
                 # these routes are NOT managed via BIRD, in order to ensure we can still recover the router if BIRD crashes
-                ipv4.routes = (forEach (filter (p: (p.endpoint != null) && !(utils.isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 4));
-                ipv6.routes = (forEach (filter (p: (p.endpoint != null) && (utils.isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 6));
+                ipv4.routes = (forEach (filter (p: (p.endpoint != null) && !(tools.isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 4));
+                ipv6.routes = (forEach (filter (p: (p.endpoint != null) && (tools.isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 6));
             };
         }];
 
