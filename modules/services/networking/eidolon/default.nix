@@ -39,7 +39,7 @@ in {
             }) {} nodes;
         in {
             inherit regions;
-            utils = (import ./utils.nix {
+            tools = (import ./utils.nix {
                 inherit config lib regions;
             });
         };

@@ -1,4 +1,4 @@
-{ config, lib, utils, ... }:
+{ config, lib, tools, ... }:
 
 with lib;
 
@@ -131,8 +131,8 @@ let
 
             neighbor = {
                 # normalise the v4/v6 addrs and copy over default attrs from the peer to each address
-                v4addrs = utils.defaultSetAttrs (neighborKeyToAttrs neighborAttrs "v4addrs") neighborDefaultAttrs peer;
-                v6addrs = utils.defaultSetAttrs (neighborKeyToAttrs neighborAttrs "v6addrs") neighborDefaultAttrs peer;
+                v4addrs = tools.defaultSetAttrs (neighborKeyToAttrs neighborAttrs "v4addrs") neighborDefaultAttrs peer;
+                v6addrs = tools.defaultSetAttrs (neighborKeyToAttrs neighborAttrs "v6addrs") neighborDefaultAttrs peer;
             };
         }
     );

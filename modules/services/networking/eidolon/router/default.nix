@@ -1,11 +1,11 @@
-{ config, lib, utils, regions, ... }:
+{ config, lib, tools, regions, ... }:
 
 with lib;
 
 let
     inherit (lib.kuiser) defaultAttrs;
-    inherit (utils) addrOpts addrsToOpts addrToString;
-    inherit (utils.router) routeOpts resolvePeers;
+    inherit (tools) addrOpts addrsToOpts addrToString;
+    inherit (tools.router) routeOpts resolvePeers;
 
     eidolon = config.services.eidolon;
     cfg = eidolon.router;
@@ -122,8 +122,8 @@ in {
     };
 
     config = mkMerge [{
-        _module.args.utils.router = utils // (import ./utils.nix {
-            inherit config lib regions utils;
+        _module.args.tools.router = tools // (import ./utils.nix {
+            inherit config lib regions tools;
         });
     } (mkIf (eidolon.enable && cfg.enable) {
         networking = {

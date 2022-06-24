@@ -1,9 +1,9 @@
-{ config, lib, utils, ... }:
+{ config, lib, tools, ... }:
 
 with lib;
 
 let
-    inherit (utils) addrOpts;
+    inherit (tools) addrOpts;
 
     router = config.services.eidolon.router;
     cfg = router.nat64;
@@ -38,7 +38,7 @@ in {
     };
 
     config = mkIf cfg.enable {
-        services.networking.tayga = with utils; {
+        services.networking.tayga = with tools; {
             enable = true;
 
             ipv4 = {
