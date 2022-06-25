@@ -421,9 +421,9 @@ in rec {
                 imports = [(root + "/users/${username}/home.nix")];
             };
         };
-    in mapAttrs (host: _: recImportDirs {
+    in recursiveMerge (mapAttrsToList (host: _: recImportDirs {
         dir = root + "/users";
         nameModifier = n: "${n}@${host}";
         _import = config host;
-    }) hosts;
+    }) hosts);
 }
