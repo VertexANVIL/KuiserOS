@@ -107,14 +107,6 @@ in rec {
     # Retrieves the store path of one of our base inputs
     mkInputStorePath = input: baseInputs.${input}.outPath;
 
-    # Makes a Colmena hive from a system and nodes
-    mkColmenaHiveNodes = system: nodes: let
-        inherit (baseInputs) colmena;
-        inherit (colmena.lib.${system}) mkColmenaHive;
-    in mkColmenaHive {
-        inherit system nodes lib;
-    };
-
     # shared repo creation function
     mkBaseRepo = all@{ inputs, ... }: let
         inherit (flake-utils.lib)
@@ -236,15 +228,9 @@ in rec {
         inputs,
         bases ? [],
         flat ? false,
-        system ? "x86_64-linux",
-
-        # dynamic result generation functor
-        generator ? null
+        system ? "x86_64-linux"
     }: let
-        inherit (baseInputs) colmena;
         inherit (inputs) self;
-
-        inherit (colmena.lib.${system}) mkColmenaHive;
 
         root = self.outPath;
         pkgSets = genPkgSets inputs;
@@ -263,23 +249,25 @@ in rec {
         };
 
         # function to create our host attrs
-        mkHosts = { root, flat ? false, bases ? [] }: rec {
-            nixosConfigurations = mkNixosSystems {
+        mkHosts = { root, flat ? false, bases ? [] }: let
+            common = {
                 inherit root system bases flat pkgSets;
                 inputs = baseInputs // inputs;
             };
+        in rec {
+            nixosConfigurations = mkNixosSystems common;
+            homeConfigurations = mkHomes common;
 
-            homeManagerConfigurations = mkHomes {
-                inherit root system bases flat pkgSets;
-                inputs = baseInputs // inputs;
-            };
-
-            colmena = {
+            colmena = let
+                systems = mkNixosSystems (common // {
+                    mode = "colmena";
+                });
+            in {
                 meta.nixpkgs = pkgSets.nixpkgs.${system};
             } // (mapAttrs (_: v: {
                 inherit (v) _module;
                 nixpkgs.system = v.config.nixpkgs.system;
-            }) nixosConfigurations);
+            }) systems);
         };
     in recursiveUpdate repo (
         mkHosts {
@@ -295,6 +283,7 @@ in rec {
         name, # The hostname of the host
         bases ? [], # The base configurations for the repo
         config, # The base configuration for the host
+        mode ? "", # Special mode modifier i.e. `colmena`
         system ? "x86_64-linux", # Target system to build for
         pkgSets, # The compiled package sets
     }: let
@@ -310,9 +299,12 @@ in rec {
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit name nodes unstable; host = name;
+            inherit unstable; host = name;
             lib = nixosLib { inherit inputs pkgs; };
-        };
+        } // (if mode != "colmena" then {
+            # polyfill name and nodes for non-colmena scenarios
+            inherit name nodes;
+        } else {});
 
         modules = let
             # merge down core profiles from all repos
@@ -376,17 +368,17 @@ in rec {
         inputs,
         root,
 
+        mode ? "", # Special mode modifier i.e. `colmena`
         system ? "x86_64-linux", # Target system to build for
         bases ? {},
         flat ? false,
-        pkgSets,
+        pkgSets
     }: let
         config = name: let
             # flat = hosts live in top-level rather than in "hosts" folder
             hostFile = root + (if flat then "/${name}" else "/hosts/${name}");
         in mkNixosSystem {
-            inherit inputs nodes name bases system pkgSets;
-
+            inherit inputs nodes name bases mode system pkgSets;
             config.require = [ hostFile ];
         };
 
