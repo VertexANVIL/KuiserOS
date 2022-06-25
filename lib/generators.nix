@@ -226,7 +226,6 @@ in rec {
         name,
         parent,
         inputs,
-        bases ? [],
         flat ? false,
         system ? "x86_64-linux"
     }: let
@@ -249,9 +248,13 @@ in rec {
         };
 
         # function to create our host attrs
-        mkHosts = { root, flat ? false, bases ? [] }: let
+        perHostOutputs = { root, flat ? false }: let
+            hosts = mkHosts {
+                inherit root flat;
+            };
+
             common = {
-                inherit root system bases flat pkgSets;
+                inherit root hosts system pkgSets;
                 inputs = baseInputs // inputs;
             };
         in rec {
@@ -270,8 +273,8 @@ in rec {
             }) systems);
         };
     in recursiveUpdate repo (
-        mkHosts {
-            inherit root flat bases;
+        perHostOutputs {
+            inherit root flat;
         }
     );
 
@@ -281,7 +284,6 @@ in rec {
         nodes ? {}, # Set of nodes to allow inter-node resolution
 
         name, # The hostname of the host
-        bases ? [], # The base configurations for the repo
         config, # The base configuration for the host
         mode ? "", # Special mode modifier i.e. `colmena`
         system ? "x86_64-linux", # Target system to build for
@@ -353,51 +355,46 @@ in rec {
         # **** what is being imported here? ****
         # core = profile in `profiles/core` which is always imported
         # global = internal profile which sets up local defaults
-        # bases = list of "base" profiles that come from the flake top-level
         # config = the actual host configuration
         # internal = configuration options for introspection
         # modOverrides = module overrides
         # extern.modules = modules from external flakes
-        in flakeModules ++ [ core ] ++ global ++ bases ++ [
+        in flakeModules ++ [ core ] ++ global ++ [
             config internal modOverrides
         ] ++ extern.modules;
     };
 
-    # Builds a set of NixOS systems from the hosts folder
+    # Imports an attribute set of hosts from a folder
+    mkHosts = { root, flat }: recImportDirs {
+        dir = if flat then root else root + "/hosts";
+        _import = name: root + (if flat then "/${name}" else "/hosts/${name}");
+    };
+
+    # Builds a set of NixOS systems from given hosts
     mkNixosSystems = {
         inputs,
         root,
+        hosts,
 
         mode ? "", # Special mode modifier i.e. `colmena`
         system ? "x86_64-linux", # Target system to build for
-        bases ? {},
-        flat ? false,
         pkgSets
     }: let
-        config = name: let
-            # flat = hosts live in top-level rather than in "hosts" folder
-            hostFile = root + (if flat then "/${name}" else "/hosts/${name}");
-        in mkNixosSystem {
-            inherit inputs nodes name bases mode system pkgSets;
-            config.require = [ hostFile ];
-        };
-
-        # make attrs for each possible host
-        nodes = recImportDirs {
-            dir = if flat then root else root + "/hosts";
-            _import = config;
-        };
+        nodes = mapAttrs (name: file: mkNixosSystem {
+            inherit inputs name nodes mode system pkgSets;
+            config.require = [ file ];
+        }) hosts;
     in nodes;
 
-    # Builds a set of Home Manager configurations from the users folder
+    # Builds a set of Home Manager configurations from the users folder for each host
     mkHomes = {
         inputs,
         root,
+        hosts,
 
         system ? "x86_64-linux", # Target system to build for
-        bases ? {},
         flat ? false,
-        pkgSets,
+        pkgSets
     }: let
         inherit (inputs) self;
         inherit (self._internal) extern home;
@@ -405,7 +402,7 @@ in rec {
 
         pkgs = pkgSets.nixpkgs.${system};
 
-        config = username: let
+        config = host: username: let
         in homeManagerConfiguration {
             inherit pkgs system username;
             homeDirectory = "/home/${username}";
@@ -413,12 +410,10 @@ in rec {
             # TODO: deduplicate these?
             extraModules = extern.home.modules ++ (attrValues home.modules);
             extraSpecialArgs = extern.home.specialArgs // {
-                # FIXME: impure because we need to support this for WSL
-                host = removeSuffix "\n" (readFile /etc/hostname);
+                inherit host;
 
                 # add our unstable package set
                 unstable = pkgSets.unstable.${system};
-
                 lib = nixosLibHm { inherit inputs pkgs; };
             };
 
@@ -426,10 +421,9 @@ in rec {
                 imports = [(root + "/users/${username}/home.nix")];
             };
         };
-
-        homes = recImportDirs {
-            dir = root + "/users";
-            _import = config;
-        };
-    in homes;
+    in mapAttrs (host: _: recImportDirs {
+        dir = root + "/users";
+        nameModifier = n: "${n}@${host}";
+        _import = config host;
+    }) hosts;
 }
