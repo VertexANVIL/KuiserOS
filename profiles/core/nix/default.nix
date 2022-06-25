@@ -1,7 +1,6 @@
 { lib, pkgs, ... }:
 {
     nix = {
-        package = pkgs.nix_2_4;
         systemFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
 
         autoOptimiseStore = true;
@@ -19,7 +18,7 @@
         };
 
         extraOptions = ''
-            experimental-features = flakes nix-command ca-references ca-derivations
+            experimental-features = flakes nix-command ca-derivations
             min-free = 536870912
         '';
     };
