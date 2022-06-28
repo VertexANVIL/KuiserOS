@@ -1,8 +1,10 @@
-{ config, lib, name, tools, regions, ... }:
+{ config, lib, name, tools, ... }:
 
 with lib;
 
 let
+    inherit (tools) regions;
+
     eidolon = config.services.eidolon;
     cfg = eidolon.tunnel;
 
@@ -96,7 +98,7 @@ let
     preconf = (forEach resolved (peer:
     let
         f = filterAttrs (n: v: v != null) peer.providers;
-        count = tools.attrCount f;
+        count = attrCount f;
         name = if (count > 0) then (head (attrNames f)) else null;
         provider = if (count > 0) then (head (attrValues f)) else null;
     in
@@ -156,8 +158,8 @@ in {
             interfaces.${tools.underlay} = {
                 # create static routes in order to route tunnel traffic via the underlay interface
                 # these routes are NOT managed via BIRD, in order to ensure we can still recover the router if BIRD crashes
-                ipv4.routes = (forEach (filter (p: (p.endpoint != null) && !(tools.isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 4));
-                ipv6.routes = (forEach (filter (p: (p.endpoint != null) && (tools.isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 6));
+                ipv4.routes = (forEach (filter (p: (p.endpoint != null) && !(isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 4));
+                ipv6.routes = (forEach (filter (p: (p.endpoint != null) && (isIPv6 p.endpoint)) resolved) (p: mkRouteEntry p 6));
             };
         }];
 

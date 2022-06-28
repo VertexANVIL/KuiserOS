@@ -52,7 +52,7 @@ let
         let
             addrs = if protocol == "v4" then data.neighbor.v4addrs else data.neighbor.v6addrs;
         in
-        tools.imapAttrsToList (i: n: v:
+        imapAttrsToList (i: n: v:
         let name = if i == 0 then "bgp_${data.peerName}_${protocol}" else
             "bgp_${data.peerName}_${protocol}_${toString i}";
         in
@@ -68,7 +68,7 @@ let
                 ])
 
                 (buildPeerNeighborBlock data.peer data.neighbor data.filterType protocol)
-            ]; in (builtins.concatStringsSep "\n" (tools.filterListNonEmpty (flatten peer)))}
+            ]; in (builtins.concatStringsSep "\n" (filterListNonEmpty (flatten peer)))}
         };
         '') addrs;
 
@@ -76,7 +76,7 @@ let
     buildPeer = peer: let
         neighbor = peer.neighbor;
         hasAnyProto = v: let p = "v${toString v}"; in
-            (tools.attrCount neighbor."${p}addrs" > 0) && (elem p peer.protocols);
+            (attrCount neighbor."${p}addrs" > 0) && (elem p peer.protocols);
         
         data = rec {
             inherit peer neighbor;
@@ -110,7 +110,7 @@ let
     concatStringsSep "\n" (forEach routes (addr: (
     let
         prefsrc = if (addr.prefsrc != null && addr.prefsrc == "@underlay") then (tools.underlayAddr v).address else null;
-        routeStr = tools.addrToString addr;
+        routeStr = addrToString addr;
     in
         if addr.blackhole then
             "route ${routeStr} blackhole;"
@@ -148,7 +148,7 @@ let
 
     # Builds a BIRD network set from a list of address blocks
     buildNetworkSet = addr: v: let
-        addrStr = concatStringsSep ", " (map (x: "${tools.addrToString x}+") addr);
+        addrStr = concatStringsSep ", " (map (x: "${addrToString x}+") addr);
     in "[ ${addrStr} ]";
 
     v4main = cfg.ipv4.addrs.primary;

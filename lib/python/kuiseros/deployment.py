@@ -47,11 +47,7 @@ class DeploymentUnit:
         return result.stdout.decode().strip().split(";")
 
     def _call_colmena(self, command: str, args: List[str] = [], pipe: bool = True):
-        flake = self._flake
-        if self._path is not None:
-            flake += f"#{self._path}"
-
-        params = ["colmena", command, "-i", flake]
+        params = ["colmena", command]
         params += args
 
         nix_params = []
@@ -84,7 +80,7 @@ class DeploymentUnit:
         cur = Path(__file__).parent.joinpath("eval.nix")
         with open(cur, "r") as f:
             eval_nix = f.read()
-        result = self._call_colmena("introspect", ["-E", eval_nix])
+        result = self._call_colmena("eval", ["-E", eval_nix])
         config = json.loads(result.stdout)
 
         for k, v in config.items():

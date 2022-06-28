@@ -1,6 +1,17 @@
-{ lib, nodes }: let
-    inherit (lib) filterAttrs mapAttrs unique tryEval';
-    inherit (builtins) isAttrs isFunction removeAttrs;
+{ lib, nodes, ... }: let
+    inherit (lib) filterAttrs mapAttrs unique;
+    inherit (builtins) isAttrs isFunction removeAttrs tryEval;
+
+    # Like `tryEval`, but recursive.
+    # copied from xnlib because colmena stuff :/
+    tryEval' = set: let
+        recurse = s: mapAttrs (n: v: let
+            eval = tryEval v;
+            value = if eval.success then eval.value else null;
+        in if isAttrs value
+            then recurse value
+        else value) s;
+    in recurse set;
 in
     (mapAttrs (n: v: let
         cfg = v.config;

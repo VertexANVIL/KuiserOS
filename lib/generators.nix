@@ -6,7 +6,7 @@ let
         recursiveUpdate substring optional removePrefix removeSuffix nameValuePair hasAttr hasAttrByPath attrByPath assertMsg
         genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames optionalPath optionalPathImport pathsToImportedAttrs recImportDirs mkProfileAttrs;
     inherit (lib.kuiser) pkgImport;
-    inherit (baseInputs) nixpkgs unstable flake-utils deploy-rs;
+    inherit (baseInputs) nixpkgs unstable flake-utils colmena;
 in rec {
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
@@ -249,6 +249,8 @@ in rec {
 
         # function to create our host attrs
         hostOutputs = let
+            inherit (nixpkgs.lib) nixosSystem;
+
             hosts = mkHosts {
                 inherit root flat;
             };
@@ -257,23 +259,41 @@ in rec {
                 inherit root hosts system pkgSets;
                 inputs = baseInputs // inputs;
             };
+
+            nixosSystems = mkNixosSystems common;
         in rec {
-            nixosConfigurations = mkNixosSystems common;
+            nixosConfigurations = mapAttrs (_: nixosSystem) nixosSystems;
             homeConfigurations = mkHomes common;
 
-            # deploy-rs stuff
-            deploy.nodes = mapAttrs (n: v: {
-                profiles.system = let
-                    activate = deploy-rs.lib.x86_64-linux.activate.nixos;
-                in {
-                    user = "root";
-                    path = activate v;
+            colmena = let
+                pkgs = pkgSets.nixpkgs.${system};
+            in (mapAttrs (_: v: {
+                imports = v.modules;
+                nixpkgs.system = v.system;
+            }) nixosSystems) // {
+                meta = {
+                    nixpkgs = pkgs;
+                    specialArgs = mkColmenaSpecialArgs common;
                 };
-            }) self.nixosConfigurations;
-
-            checks = mapAttrs (_: l: l.deployChecks self.deploy) deploy-rs.lib;
+            };
         };
     in recursiveUpdate repo hostOutputs;
+
+    mkColmenaSpecialArgs = {
+        inputs,
+        pkgSets,
+        system,
+        ...
+    }: let
+        inherit (inputs) self;
+        inherit (self._internal) extern;
+
+        pkgs = pkgSets.nixpkgs.${system};
+        unstable = pkgSets.unstable.${system};
+    in extern.specialArgs // {
+        inherit unstable;
+        lib = nixosLib { inherit inputs pkgs; };
+    };
 
     # Builds a NixOS system
     mkNixosSystem = {
@@ -282,23 +302,21 @@ in rec {
 
         name, # The hostname of the host
         config, # The base configuration for the host
-        system ? "x86_64-linux", # Target system to build for
+        system, # Target system to build for
         pkgSets, # The compiled package sets
     }: let
         inherit (inputs) self;
-        inherit (nixpkgs.lib) nixosSystem;
         inherit (self._internal) extern home overrides profiles users;
 
         pkgs = pkgSets.nixpkgs.${system};
         unstable = pkgSets.unstable.${system};
-
-    in nixosSystem {
+    in {
         inherit system;
 
         # note: failing to add imports in here
         # WILL result in an obscure "infinite recursion" error!!
         specialArgs = extern.specialArgs // {
-            inherit name nodes unstable; host = name;
+            inherit name nodes unstable;
             lib = nixosLib { inherit inputs pkgs; };
         };
 
@@ -356,6 +374,10 @@ in rec {
         in flakeModules ++ [ core ] ++ global ++ [
             config internal modOverrides
         ] ++ extern.modules;
+
+        extraModules = [
+            colmena.nixosModules.deploymentOptions
+        ];
     };
 
     # Imports an attribute set of hosts from a folder

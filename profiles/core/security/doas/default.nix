@@ -16,7 +16,4 @@
             ];
         };
     };
-
-    # Make sure Colmena uses doas for deployment
-    deployment.privilegeEscalationCommand = [ "doas" "--" ];
 }

@@ -1,10 +1,9 @@
-{ config, lib, tools, regions, ... }:
+{ config, lib, tools, ... }:
 
 with lib;
 
 let
-    inherit (lib.kuiser) defaultAttrs;
-    inherit (tools) addrOpts addrsToOpts addrToString;
+    inherit (tools) regions;
     inherit (tools.router) routeOpts resolvePeers;
 
     eidolon = config.services.eidolon;
@@ -121,11 +120,7 @@ in {
         };
     };
 
-    config = mkMerge [{
-        _module.args.tools.router = tools // (import ./utils.nix {
-            inherit config lib regions tools;
-        });
-    } (mkIf (eidolon.enable && cfg.enable) {
+    config = mkIf (eidolon.enable && cfg.enable) {
         networking = {
             interfaces.dummy0 = {
                 # set the dummy as primary since it will be routed
@@ -151,5 +146,5 @@ in {
                     '') peer.neighbor.v6addrs
             )))}
         '';
-    })];
+    };
 }

@@ -11,7 +11,7 @@ in
         home.nixosModules.home-manager
         impermanence.nixosModules.impermanence
     ] ++ (flatten [
-        # nothing here yet
+        # nothing here yet...
     ]);
 
     overlays = with inputs; [
