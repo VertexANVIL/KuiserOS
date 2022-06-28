@@ -18,8 +18,7 @@ in recursiveUpdate super {
         certs = f ./certs.nix;
 
         inherit (importers) pkgImport;
-        inherit (generators) genPkgs genPackagesOutput mkVersion mkInputStorePath
-            mkColmenaHiveNodes mkBaseRepo mkRepo;
+        inherit (generators) genPkgs genPackagesOutput mkVersion mkInputStorePath mkBaseRepo mkRepo;
         inherit (modules) systemGlobal;
 
         # backwards compat (stuff was moved to the xnlib flake)

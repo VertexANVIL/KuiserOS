@@ -261,16 +261,9 @@ in rec {
             nixosConfigurations = mkNixosSystems common;
             homeConfigurations = mkHomes common;
 
-            colmena = let
-                systems = mkNixosSystems (common // {
-                    mode = "colmena";
-                });
-            in {
-                meta.nixpkgs = pkgSets.nixpkgs.${system};
-            } // (mapAttrs (_: v: {
-                inherit (v) _module;
-                nixpkgs.system = v.config.nixpkgs.system;
-            }) systems);
+            colmena = mkNixosSystems (common // {
+                mode = "colmena";
+            });
         };
     in recursiveUpdate repo (
         perHostOutputs {
@@ -295,74 +288,79 @@ in rec {
 
         pkgs = pkgSets.nixpkgs.${system};
         unstable = pkgSets.unstable.${system};
-    in nixosSystem {
-        inherit system;
 
-        # note: failing to add imports in here
-        # WILL result in an obscure "infinite recursion" error!!
-        specialArgs = extern.specialArgs // {
-            inherit unstable; host = name;
-            lib = nixosLib { inherit inputs pkgs; };
-        } // (if mode != "colmena" then {
-            # polyfill name and nodes for non-colmena scenarios
-            inherit name nodes;
-        } else {});
+        attrs = {
+            inherit system;
 
-        modules = let
-            # merge down core profiles from all repos
-            core.require = profiles.core.defaults;
+            # note: failing to add imports in here
+            # WILL result in an obscure "infinite recursion" error!!
+            specialArgs = extern.specialArgs // {
+                inherit unstable; host = name;
+                lib = nixosLib { inherit inputs pkgs; };
+            } // (if mode != "colmena" then {
+                # polyfill name and nodes for non-colmena scenarios
+                inherit name nodes;
+            } else {});
 
-            global = with lib.kuiser.modules; [
-                (globalDefaults { inherit inputs pkgs name; })
-                (hmDefaults {
-                    sharedModules = extern.home.modules ++ (attrValues home.modules);
-                    extraSpecialArgs = let
-                        lib = nixosLibHm { inherit inputs pkgs; };
-                    in extern.home.specialArgs // {
-                        # add our unstable package set
-                        inherit lib unstable;
-                        host = name;
-                    };
-                })
-            ];
+            modules = let
+                # merge down core profiles from all repos
+                core.require = profiles.core.defaults;
 
-            internal = { lib, ... }: with lib; {
-                options.kuiser = {
-                    users = mkOption {
-                        default = [];
-                        type = types.listOf types.str;
-                        description = "List of enabled user profiles, for use in conditionals.";
-                    };
+                global = with lib.kuiser.modules; [
+                    (globalDefaults { inherit inputs pkgs name; })
+                    (hmDefaults {
+                        sharedModules = extern.home.modules ++ (attrValues home.modules);
+                        extraSpecialArgs = let
+                            lib = nixosLibHm { inherit inputs pkgs; };
+                        in extern.home.specialArgs // {
+                            # add our unstable package set
+                            inherit lib unstable;
+                            host = name;
+                        };
+                    })
+                ];
 
-                    profiles = mkOption {
-                        default = [];
-                        type = types.listOf types.str;
-                        description = "List of enabled system profiles, for use in conditionals.";
+                internal = { lib, ... }: with lib; {
+                    options.kuiser = {
+                        users = mkOption {
+                            default = [];
+                            type = types.listOf types.str;
+                            description = "List of enabled user profiles, for use in conditionals.";
+                        };
+
+                        profiles = mkOption {
+                            default = [];
+                            type = types.listOf types.str;
+                            description = "List of enabled system profiles, for use in conditionals.";
+                        };
                     };
                 };
-            };
 
-            modOverrides = { config, overrideModulesPath, ... }: let
-                inherit (overrides) modules disabledModules;
-            in {
-                disabledModules = modules ++ disabledModules;
-                imports = map (path: "${overrideModulesPath}/${path}") modules;
-            };
+                modOverrides = { config, overrideModulesPath, ... }: let
+                    inherit (overrides) modules disabledModules;
+                in {
+                    disabledModules = modules ++ disabledModules;
+                    imports = map (path: "${overrideModulesPath}/${path}") modules;
+                };
 
-            # Everything in `./modules/list.nix`.
-            flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
-        
-        # **** what is being imported here? ****
-        # core = profile in `profiles/core` which is always imported
-        # global = internal profile which sets up local defaults
-        # config = the actual host configuration
-        # internal = configuration options for introspection
-        # modOverrides = module overrides
-        # extern.modules = modules from external flakes
-        in flakeModules ++ [ core ] ++ global ++ [
-            config internal modOverrides
-        ] ++ extern.modules;
-    };
+                # Everything in `./modules/list.nix`.
+                flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
+            
+            # **** what is being imported here? ****
+            # core = profile in `profiles/core` which is always imported
+            # global = internal profile which sets up local defaults
+            # config = the actual host configuration
+            # internal = configuration options for introspection
+            # modOverrides = module overrides
+            # extern.modules = modules from external flakes
+            in flakeModules ++ [ core ] ++ global ++ [
+                config internal modOverrides
+            ] ++ extern.modules;
+        };
+    # build our special configuration object for Colmena, if set
+    in if mode == "colmena" then ([({...}: {
+        _module.args = attrs.specialArgs;
+    })] ++ attrs.modules) else nixosSystem attrs;
 
     # Imports an attribute set of hosts from a folder
     mkHosts = { root, flat }: recImportDirs {
@@ -384,7 +382,9 @@ in rec {
             inherit inputs name nodes mode system pkgSets;
             config.require = [ file ];
         }) hosts;
-    in nodes;
+    in nodes // (if mode == "colmena" then {
+        meta.nixpkgs = pkgSets.nixpkgs.${system};
+    } else {});
 
     # Builds a set of Home Manager configurations from the users folder for each host
     mkHomes = {
