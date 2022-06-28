@@ -33,7 +33,7 @@
         };
 
         flake-utils.url = "github:numtide/flake-utils/flatten-tree-system";
-        colmena.url = "github:zhaofengli/colmena";
+        deploy-rs.url = "github:serokell/deploy-rs";
 
         home = {
            url = "github:nix-community/home-manager/release-22.05";

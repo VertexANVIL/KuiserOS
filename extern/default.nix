@@ -11,7 +11,7 @@ in
         home.nixosModules.home-manager
         impermanence.nixosModules.impermanence
     ] ++ (flatten [
-        (attrValues colmena.nixosModules)
+        # nothing here yet
     ]);
 
     overlays = with inputs; [
@@ -23,7 +23,6 @@ in
                 inputs.${n}.packages.${prev.system}.${n}
             );
         in (importNamed [
-            #"colmena"
             "nixos-generators"
         ]))
     ];

@@ -6,7 +6,7 @@ let
         recursiveUpdate substring optional removePrefix removeSuffix nameValuePair hasAttr hasAttrByPath attrByPath assertMsg
         genAttrs' recursiveMerge recursiveMergeAttrsWith recursiveMergeAttrsWithNames optionalPath optionalPathImport pathsToImportedAttrs recImportDirs mkProfileAttrs;
     inherit (lib.kuiser) pkgImport;
-    inherit (baseInputs) nixpkgs unstable flake-utils;
+    inherit (baseInputs) nixpkgs unstable flake-utils deploy-rs;
 in rec {
     # Generates packages for every possible system
     # extern + overlay => { foobar.x86_64-linux }
@@ -248,7 +248,7 @@ in rec {
         };
 
         # function to create our host attrs
-        perHostOutputs = { root, flat ? false }: let
+        hostOutputs = let
             hosts = mkHosts {
                 inherit root flat;
             };
@@ -261,15 +261,19 @@ in rec {
             nixosConfigurations = mkNixosSystems common;
             homeConfigurations = mkHomes common;
 
-            colmena = mkNixosSystems (common // {
-                mode = "colmena";
-            });
+            # deploy-rs stuff
+            deploy.nodes = mapAttrs (n: v: {
+                profiles.system = let
+                    activate = deploy-rs.lib.x86_64-linux.activate.nixos;
+                in {
+                    user = "root";
+                    path = activate v;
+                };
+            }) self.nixosConfigurations;
+
+            checks = mapAttrs (_: l: l.deployChecks self.deploy) deploy-rs.lib;
         };
-    in recursiveUpdate repo (
-        perHostOutputs {
-            inherit root flat;
-        }
-    );
+    in recursiveUpdate repo hostOutputs;
 
     # Builds a NixOS system
     mkNixosSystem = {
@@ -278,7 +282,6 @@ in rec {
 
         name, # The hostname of the host
         config, # The base configuration for the host
-        mode ? "", # Special mode modifier i.e. `colmena`
         system ? "x86_64-linux", # Target system to build for
         pkgSets, # The compiled package sets
     }: let
@@ -289,78 +292,71 @@ in rec {
         pkgs = pkgSets.nixpkgs.${system};
         unstable = pkgSets.unstable.${system};
 
-        attrs = {
-            inherit system;
+    in nixosSystem {
+        inherit system;
 
-            # note: failing to add imports in here
-            # WILL result in an obscure "infinite recursion" error!!
-            specialArgs = extern.specialArgs // {
-                inherit unstable; host = name;
-                lib = nixosLib { inherit inputs pkgs; };
-            } // (if mode != "colmena" then {
-                # polyfill name and nodes for non-colmena scenarios
-                inherit name nodes;
-            } else {});
+        # note: failing to add imports in here
+        # WILL result in an obscure "infinite recursion" error!!
+        specialArgs = extern.specialArgs // {
+            inherit name nodes unstable; host = name;
+            lib = nixosLib { inherit inputs pkgs; };
+        };
 
-            modules = let
-                # merge down core profiles from all repos
-                core.require = profiles.core.defaults;
+        modules = let
+            # merge down core profiles from all repos
+            core.require = profiles.core.defaults;
 
-                global = with lib.kuiser.modules; [
-                    (globalDefaults { inherit inputs pkgs name; })
-                    (hmDefaults {
-                        sharedModules = extern.home.modules ++ (attrValues home.modules);
-                        extraSpecialArgs = let
-                            lib = nixosLibHm { inherit inputs pkgs; };
-                        in extern.home.specialArgs // {
-                            # add our unstable package set
-                            inherit lib unstable;
-                            host = name;
-                        };
-                    })
-                ];
+            global = with lib.kuiser.modules; [
+                (globalDefaults { inherit inputs pkgs name; })
+                (hmDefaults {
+                    sharedModules = extern.home.modules ++ (attrValues home.modules);
+                    extraSpecialArgs = let
+                        lib = nixosLibHm { inherit inputs pkgs; };
+                    in extern.home.specialArgs // {
+                        # add our unstable package set
+                        inherit lib unstable;
+                        host = name;
+                    };
+                })
+            ];
 
-                internal = { lib, ... }: with lib; {
-                    options.kuiser = {
-                        users = mkOption {
-                            default = [];
-                            type = types.listOf types.str;
-                            description = "List of enabled user profiles, for use in conditionals.";
-                        };
+            internal = { lib, ... }: with lib; {
+                options.kuiser = {
+                    users = mkOption {
+                        default = [];
+                        type = types.listOf types.str;
+                        description = "List of enabled user profiles, for use in conditionals.";
+                    };
 
-                        profiles = mkOption {
-                            default = [];
-                            type = types.listOf types.str;
-                            description = "List of enabled system profiles, for use in conditionals.";
-                        };
+                    profiles = mkOption {
+                        default = [];
+                        type = types.listOf types.str;
+                        description = "List of enabled system profiles, for use in conditionals.";
                     };
                 };
+            };
 
-                modOverrides = { config, overrideModulesPath, ... }: let
-                    inherit (overrides) modules disabledModules;
-                in {
-                    disabledModules = modules ++ disabledModules;
-                    imports = map (path: "${overrideModulesPath}/${path}") modules;
-                };
+            modOverrides = { config, overrideModulesPath, ... }: let
+                inherit (overrides) modules disabledModules;
+            in {
+                disabledModules = modules ++ disabledModules;
+                imports = map (path: "${overrideModulesPath}/${path}") modules;
+            };
 
-                # Everything in `./modules/list.nix`.
-                flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
-            
-            # **** what is being imported here? ****
-            # core = profile in `profiles/core` which is always imported
-            # global = internal profile which sets up local defaults
-            # config = the actual host configuration
-            # internal = configuration options for introspection
-            # modOverrides = module overrides
-            # extern.modules = modules from external flakes
-            in flakeModules ++ [ core ] ++ global ++ [
-                config internal modOverrides
-            ] ++ extern.modules;
-        };
-    # build our special configuration object for Colmena, if set
-    in if mode == "colmena" then ([({...}: {
-        _module.args = attrs.specialArgs;
-    })] ++ attrs.modules) else nixosSystem attrs;
+            # Everything in `./modules/list.nix`.
+            flakeModules = attrValues (removeAttrs self.nixosModules [ "profiles" ]);
+        
+        # **** what is being imported here? ****
+        # core = profile in `profiles/core` which is always imported
+        # global = internal profile which sets up local defaults
+        # config = the actual host configuration
+        # internal = configuration options for introspection
+        # modOverrides = module overrides
+        # extern.modules = modules from external flakes
+        in flakeModules ++ [ core ] ++ global ++ [
+            config internal modOverrides
+        ] ++ extern.modules;
+    };
 
     # Imports an attribute set of hosts from a folder
     mkHosts = { root, flat }: recImportDirs {
@@ -374,17 +370,14 @@ in rec {
         root,
         hosts,
 
-        mode ? "", # Special mode modifier i.e. `colmena`
         system ? "x86_64-linux", # Target system to build for
         pkgSets
     }: let
         nodes = mapAttrs (name: file: mkNixosSystem {
-            inherit inputs name nodes mode system pkgSets;
+            inherit inputs name nodes system pkgSets;
             config.require = [ file ];
         }) hosts;
-    in nodes // (if mode == "colmena" then {
-        meta.nixpkgs = pkgSets.nixpkgs.${system};
-    } else {});
+    in nodes;
 
     # Builds a set of Home Manager configurations from the users folder for each host
     mkHomes = {
