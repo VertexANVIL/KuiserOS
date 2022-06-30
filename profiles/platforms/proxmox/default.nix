@@ -7,6 +7,7 @@
     config = {
         fileSystems."/" = {
             device = "/dev/disk/by-label/nixos";
+            fsType = "ext4";
             autoResize = true;
         };
 
@@ -20,6 +21,9 @@
             };
         };
 
-        services.cloud-init.enable = true;
+        services.cloud-init = {
+            enable = true;
+            network.enable = true;
+        };
     };
 }
