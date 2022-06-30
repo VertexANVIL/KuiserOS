@@ -227,11 +227,14 @@ in rec {
         parent,
         inputs,
         flat ? false,
+        root ? null,
         system ? "x86_64-linux"
     }: let
-        inherit (inputs) self;
+        root = if all.root == null
+            then self.outPath
+            else all.root;
 
-        root = self.outPath;
+        inherit (inputs) self;
         pkgSets = genPkgSets inputs;
 
         # build the repository
