@@ -108,13 +108,13 @@ in rec {
     mkInputStorePath = input: baseInputs.${input}.outPath;
 
     # shared repo creation function
-    mkBaseRepo = all@{ inputs, ... }: let
+    mkBaseRepo = all@{ inputs, _root ? null, ... }: let
         inherit (flake-utils.lib)
             eachDefaultSystem flattenTreeSystem;
         inherit (inputs) self;
-
-        root = self.outPath;
         pkgSets = genPkgSets inputs;
+
+        root = if _root == null then self.outPath else _root;
 
         # list of module paths -> i.e. security/sgx
         # too bad we cannot output actual recursive attribute sets :(
@@ -222,24 +222,22 @@ in rec {
     in recursiveUpdate outputs systemOutputs;
 
     # Produces flake outputs for repositories
-    mkRepo = all@{
+    mkRepo = {
         name,
         parent,
         inputs,
         flat ? false,
-        root ? null,
-        system ? "x86_64-linux"
-    }: let
-        root = if all.root == null
-            then self.outPath
-            else all.root;
+        system ? "x86_64-linux",
 
+        _root ? null
+    }@all: let
         inherit (inputs) self;
+        root = if _root == null then self.outPath else _root;
         pkgSets = genPkgSets inputs;
 
         # build the repository
         repo = let
-            local = mkBaseRepo (all // { inputs = baseInputs // inputs; });
+            local = mkBaseRepo (all // { inputs = baseInputs // inputs; _root = root; });
 
             # merge together the attrs we need from our parent
             shallowMerged = recursiveMergeAttrsWithNames
@@ -321,6 +319,9 @@ in rec {
         specialArgs = extern.specialArgs // {
             inherit name nodes unstable;
             lib = nixosLib { inherit inputs pkgs; };
+
+            # temporary hack until we figure out what is breaking this (?)
+            host = name;
         };
 
         modules = let
