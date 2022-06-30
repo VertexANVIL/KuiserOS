@@ -38,20 +38,13 @@ class DeploymentUnit:
         self._reachability: Mapping[str, bool] = None
 
         self._handlers = [i() for i in HANDLER_CLASSES]
-        self._override_data = self._get_override_data()
         self._show_trace = show_trace
-
-    def _get_override_data(self) -> List[str]:
-        result = subprocess.run(["inix-helper"], stdout=subprocess.PIPE)
-        result.check_returncode()
-        return result.stdout.decode().strip().split(";")
 
     def _call_colmena(self, command: str, args: List[str] = [], pipe: bool = True):
         params = ["colmena", command]
         params += args
 
         nix_params = []
-        nix_params.extend(self._override_data)
         nix_params.extend(["--quiet", "--quiet"])
         if self._show_trace:
             nix_params.append("--show-trace")

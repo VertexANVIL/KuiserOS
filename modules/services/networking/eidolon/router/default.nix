@@ -122,7 +122,7 @@ in {
 
     config = mkIf (eidolon.enable && cfg.enable) {
         networking = {
-            interfaces.dummy0 = {
+            interfaces.lo = {
                 # set the dummy as primary since it will be routed
                 primary = true;
 
