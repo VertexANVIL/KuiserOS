@@ -1,5 +1,5 @@
 { lib, nodes, ... }: let
-    inherit (lib) filterAttrs mapAttrs unique;
+    inherit (lib) filterAttrs mapAttrs mapAttrs' unique nameValuePair;
     inherit (builtins) isAttrs isFunction removeAttrs tryEval;
 
     # Like `tryEval`, but recursive.
@@ -13,10 +13,11 @@
         else value) s;
     in recurse set;
 in
-    (mapAttrs (n: v: let
+    (mapAttrs' (n: v: let
         cfg = v.config;
+        fqdn = "${cfg.networking.hostName}.${cfg.networking.domain}";
         appRole = v.config.services.vault-agent.autoAuth.methods.appRole;
-    in {
+    in nameValuePair fqdn {
         # TODO: should we be using a seperate attribute for this?
         dns = cfg.deployment.targetHost;
         eidolon = tryEval' cfg.services.eidolon;
