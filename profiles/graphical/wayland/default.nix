@@ -1,8 +1,11 @@
 { pkgs, ... }:
 {
     services.xserver.displayManager = {
-        sddm.settings.Wayland.SessionDir = "${pkgs.plasma5Packages.plasma-workspace}/share/wayland-sessions";
         #gdm.wayland = true;
+
+        sessionPackages = [
+            (pkgs.plasma-workspace.overrideAttrs (old: { passthru.providedSessions = [ "plasmawayland" ]; }))
+        ];
     };
 
     xdg.portal.wlr.enable = true;

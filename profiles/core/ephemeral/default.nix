@@ -10,6 +10,7 @@
         directories = [
             "/var/log"
             "/var/lib/bluetooth"
+            "/var/lib/boltd"
             "/var/lib/systemd/coredump"
             "/var/lib/tpm"
             "/etc/NetworkManager/system-connections"

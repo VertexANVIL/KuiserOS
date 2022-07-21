@@ -7,6 +7,7 @@
         desktopManager.plasma5 = {
             enable = true;
             supportDDC = true;
+            runUsingSystemd = true;
         };
     };
 

@@ -14,16 +14,10 @@
 
     # set up our zfs filesystems
     fileSystems = {
-        #"/" = {
-        #    device = "rpool/local/root";
-        #    fsType = "zfs";
-        #};
-
-	    "/" = {
-            device = "none";
-            fsType = "tmpfs";
-            options = ["size=8G" "mode=755"];
-	    };
+        "/" = {
+           device = "rpool/local/root";
+           fsType = "zfs";
+        };
 
         "/nix" = {
             device = "rpool/local/nix";

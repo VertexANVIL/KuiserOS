@@ -12,8 +12,8 @@ in mkProfile {
     ];
 
     networking.useDHCP = false;
-
     hardware.enableRedistributableFirmware = true;
+    #documentation.nixos.includeAllModules = true;
 
     environment = {
         systemPackages = system.packages;
