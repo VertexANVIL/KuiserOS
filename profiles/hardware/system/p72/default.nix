@@ -3,6 +3,7 @@ let
     inherit (lib.kuiser) mkProfile;
 in mkProfile {
     imports = [
+        hardware.common-pc
         hardware.common-pc-laptop
         hardware.common-pc-laptop-ssd
         hardware.common-cpu-intel-kaby-lake
