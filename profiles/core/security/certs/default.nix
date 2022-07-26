@@ -1,5 +1,5 @@
 {
-    security.pki.certificateFiles = [
-        ./arctarus.pem
-    ];
+  security.pki.certificateFiles = [
+    ./arctarus.pem
+  ];
 }

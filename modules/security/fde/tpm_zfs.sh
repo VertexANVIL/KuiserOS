@@ -40,7 +40,7 @@ destroy_key() {
 unlock_volume() {
     ZPATH=$1
     KEY=$2
-    
+
     VOLGUID=$(zfs get guid -o value -H $ZPATH)
     RAW=$(tpm_nvread -i 1)
     if [ $? -ne 0 ]; then

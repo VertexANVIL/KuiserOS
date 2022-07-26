@@ -55,10 +55,11 @@ let
     '';
   };
 
-  mediawikiScripts = pkgs.runCommand "mediawiki-scripts" {
-    buildInputs = [ pkgs.makeWrapper ];
-    preferLocalBuild = true;
-  } ''
+  mediawikiScripts = pkgs.runCommand "mediawiki-scripts"
+    {
+      buildInputs = [ pkgs.makeWrapper ];
+      preferLocalBuild = true;
+    } ''
     mkdir -p $out/bin
     for i in changePassword.php createAndPromote.php userOptions.php edit.php nukePage.php update.php; do
       makeWrapper ${pkgs.php}/bin/php $out/bin/mediawiki-$(basename $i .php) \
@@ -207,7 +208,7 @@ in
       enable = mkEnableOption "MediaWiki";
 
       composerFile = mkOption {
-        default = {};
+        default = { };
         type = types.path;
       };
 
@@ -224,7 +225,7 @@ in
       };
 
       contact = mkOption {
-        default = "foo@example.org";  
+        default = "foo@example.org";
       };
 
       uploadsDir = mkOption {
@@ -243,7 +244,7 @@ in
       };
 
       skins = mkOption {
-        default = {};
+        default = { };
         type = types.attrsOf types.path;
         description = ''
           List of paths whose content is copied to the 'skins'
@@ -252,7 +253,7 @@ in
       };
 
       extensions = mkOption {
-        default = {};
+        default = { };
         type = types.attrsOf types.path;
         description = ''
           List of paths whose content is copied to the 'extensions'
@@ -333,11 +334,11 @@ in
 
       mail = {
         host = mkOption {
-            type = types.str;
+          type = types.str;
         };
 
         idHost = mkOption {
-            type = types.str;
+          type = types.str;
         };
 
         port = mkOption {
@@ -351,7 +352,7 @@ in
         };
 
         username = mkOption {
-            type = types.str;
+          type = types.str;
         };
 
         passwordFile = mkOption {
@@ -405,16 +406,20 @@ in
   config = mkIf cfg.enable {
 
     assertions = [
-      { assertion = cfg.database.createLocally -> cfg.database.type == "mysql";
+      {
+        assertion = cfg.database.createLocally -> cfg.database.type == "mysql";
         message = "services.mediawiki-nginx.createLocally is currently only supported for database type 'mysql'";
       }
-      { assertion = cfg.database.createLocally -> cfg.database.user == user;
+      {
+        assertion = cfg.database.createLocally -> cfg.database.user == user;
         message = "services.mediawiki-nginx.database.user must be set to ${user} if services.mediawiki-nginx.database.createLocally is set true";
       }
-      { assertion = cfg.database.createLocally -> cfg.database.socket != null;
+      {
+        assertion = cfg.database.createLocally -> cfg.database.socket != null;
         message = "services.mediawiki-nginx.database.socket must be set if services.mediawiki-nginx.database.createLocally is set to true";
       }
-      { assertion = cfg.database.createLocally -> cfg.database.passwordFile == null;
+      {
+        assertion = cfg.database.createLocally -> cfg.database.passwordFile == null;
         message = "a password cannot be specified if services.mediawiki-nginx.database.createLocally is set to true";
       }
     ];
@@ -430,7 +435,8 @@ in
       package = mkDefault pkgs.mariadb;
       ensureDatabases = [ cfg.database.name ];
       ensureUsers = [
-        { name = cfg.database.user;
+        {
+          name = cfg.database.user;
           ensurePermissions = { "${cfg.database.name}.*" = "ALL PRIVILEGES"; };
         }
       ];
@@ -445,9 +451,12 @@ in
       } // cfg.poolConfig;
     };
 
-    services.nginx.virtualHosts.${cfg.virtualHost.serverName} = mkMerge [ cfg.virtualHost {
+    services.nginx.virtualHosts.${cfg.virtualHost.serverName} = mkMerge [
+      cfg.virtualHost
+      {
         root = mkForce "${pkg}/share/mediawiki";
-    }];
+      }
+    ];
 
     systemd.tmpfiles.rules = [
       "d '${stateDir}' 0750 ${user} ${group} - -"

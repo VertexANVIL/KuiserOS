@@ -1,6 +1,6 @@
 { pkgs, ... }:
 {
-    services.tcsd.enable = true;
+  services.tcsd.enable = true;
 
-    environment.systemPackages = with pkgs; [ tpm-tools ];
+  environment.systemPackages = with pkgs; [ tpm-tools ];
 }

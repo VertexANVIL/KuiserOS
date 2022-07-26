@@ -2,7 +2,8 @@
 
 let
   version = "2.1.1";
-in fetchzip {
+in
+fetchzip {
   name = "kata-images-${version}";
   url = "https://github.com/kata-containers/kata-containers/releases/download/${version}/kata-static-${version}-x86_64.tar.xz";
   sha256 = "sha256-Tee7JW1j6fcUanrun3LS+B1a4/gUSw7FAJ5ARPmV6O8=";

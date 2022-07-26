@@ -5,19 +5,19 @@ index a371f273f99d..62bfb4ef35f7 100644
 @@ -29,6 +29,11 @@ struct intel_pmic_opregion {
  	struct intel_pmic_regs_handler_ctx ctx;
  };
- 
+
 +bool override_pmic_i2c_address;
 +module_param(override_pmic_i2c_address, bool, 0400);
 +int override_pmic_i2c_address_value;
 +module_param(override_pmic_i2c_address_value, int, 0400);
 +
  static struct intel_pmic_opregion *intel_pmic_opregion;
- 
+
  static int pmic_get_reg_bit(int address, struct pmic_table *table,
 @@ -298,6 +303,9 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
  		goto out_remove_thermal_handler;
  	}
- 
+
 +	if (override_pmic_i2c_address)
 +		d->pmic_i2c_address = override_pmic_i2c_address_value;
 +
@@ -33,7 +33,7 @@ index bd7621edd60b..bf29720500b8 100644
  {
  	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
 +	int ret;
- 
+
 -	return intel_pmic_install_opregion_handler(&pdev->dev,
 +	pr_alert("DEBUG: %s() called\n",__FUNCTION__);
 +
@@ -45,7 +45,7 @@ index bd7621edd60b..bf29720500b8 100644
 +
 +	return ret;
  }
- 
+
  static const struct platform_device_id bxt_wc_opregion_id_table[] = {
 diff --git a/drivers/acpi/pmic/intel_pmic_bytcrc.c b/drivers/acpi/pmic/intel_pmic_bytcrc.c
 index 2a692cc4b7ae..61c0778ba6b4 100644
@@ -57,7 +57,7 @@ index 2a692cc4b7ae..61c0778ba6b4 100644
  	.thermal_table_count = ARRAY_SIZE(thermal_table),
 +	.pmic_i2c_address = 0x6e,
  };
- 
+
  static int intel_crc_pmic_opregion_probe(struct platform_device *pdev)
  {
  	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
@@ -73,7 +73,7 @@ index 2a692cc4b7ae..61c0778ba6b4 100644
 +
 +	return ret;
  }
- 
+
  static struct platform_driver intel_crc_pmic_opregion_driver = {
 diff --git a/drivers/acpi/pmic/intel_pmic_chtcrc.c b/drivers/acpi/pmic/intel_pmic_chtcrc.c
 index ebf8d3187df1..30398d9f5d4d 100644
@@ -95,7 +95,7 @@ index ebf8d3187df1..30398d9f5d4d 100644
 +
 +	return ret;
  }
- 
+
  static struct platform_driver intel_chtcrc_pmic_opregion_driver = {
 diff --git a/drivers/acpi/pmic/intel_pmic_chtdc_ti.c b/drivers/acpi/pmic/intel_pmic_chtdc_ti.c
 index a5101b07611a..519ed2fea2ed 100644
@@ -104,7 +104,7 @@ index a5101b07611a..519ed2fea2ed 100644
 @@ -110,9 +110,12 @@ static int chtdc_ti_pmic_opregion_probe(struct platform_device *pdev)
  	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
  	int err;
- 
+
 +	pr_alert("DEBUG: %s() called\n",__FUNCTION__);
 +
  	err = intel_pmic_install_opregion_handler(&pdev->dev,
@@ -113,7 +113,7 @@ index a5101b07611a..519ed2fea2ed 100644
 +	pr_alert("DEBUG: %s: ret: %d\n",__FUNCTION__, err);
  	if (err < 0)
  		return err;
- 
+
 diff --git a/drivers/acpi/pmic/intel_pmic_chtwc.c b/drivers/acpi/pmic/intel_pmic_chtwc.c
 index 7ffd5624b8e1..221dddf9e373 100644
 --- a/drivers/acpi/pmic/intel_pmic_chtwc.c
@@ -123,7 +123,7 @@ index 7ffd5624b8e1..221dddf9e373 100644
  {
  	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
 +	int ret;
- 
+
 -	return intel_pmic_install_opregion_handler(&pdev->dev,
 +	pr_alert("DEBUG: %s() called\n",__FUNCTION__);
 +
@@ -135,7 +135,7 @@ index 7ffd5624b8e1..221dddf9e373 100644
 +
 +	return ret;
  }
- 
+
  static const struct platform_device_id cht_wc_opregion_id_table[] = {
 diff --git a/drivers/acpi/pmic/intel_pmic_xpower.c b/drivers/acpi/pmic/intel_pmic_xpower.c
 index a091d5a8392c..dc6c11642967 100644
@@ -144,7 +144,7 @@ index a091d5a8392c..dc6c11642967 100644
 @@ -282,6 +282,8 @@ static int intel_xpower_pmic_opregion_probe(struct platform_device *pdev)
  	acpi_status status;
  	int result;
- 
+
 +	pr_alert("DEBUG: %s() called\n",__FUNCTION__);
 +
  	status = acpi_install_address_space_handler(ACPI_HANDLE(parent),
@@ -165,7 +165,7 @@ index ebd03e472955..c2b5cd243499 100644
 @@ -376,6 +376,8 @@ static int tps68470_pmic_opregion_probe(struct platform_device *pdev)
  	struct tps68470_pmic_opregion *opregion;
  	acpi_status status;
- 
+
 +	pr_alert("DEBUG: %s() called\n",__FUNCTION__);
 +
  	if (!dev || !tps68470_regmap) {
@@ -178,7 +178,7 @@ index ddd64f9e3341..9b13c58531a4 100644
 @@ -28,6 +28,11 @@ static struct pwm_lookup crc_pwm_lookup[] = {
  	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL),
  };
- 
+
 +bool override_hrv;
 +module_param(override_hrv, bool, 0400);
 +int override_hrv_value;
@@ -190,7 +190,7 @@ index ddd64f9e3341..9b13c58531a4 100644
 @@ -48,6 +53,9 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
  		return -ENODEV;
  	}
- 
+
 +	if (override_hrv)
 +		hrv = override_hrv_value;
 +
@@ -203,16 +203,16 @@ index 7c7f0fc090b3..b7f872123801 100644
 +++ b/drivers/staging/media/atomisp/i2c/Kconfig
 @@ -4,6 +4,7 @@
  #
- 
+
  source "drivers/staging/media/atomisp/i2c/ov5693/Kconfig"
 +source "drivers/staging/media/atomisp/i2c/imx/Kconfig"
- 
+
  config VIDEO_ATOMISP_OV2722
         tristate "OVT ov2722 sensor support"
 @@ -29,6 +30,18 @@ config VIDEO_ATOMISP_GC2235
- 
+
  	 It currently only works with the atomisp driver.
- 
+
 +config VIDEO_ATOMISP_OV8858
 +       tristate "Omnivision ov8858 sensor support"
 +	depends on ACPI
@@ -235,7 +235,7 @@ index 8d022986e199..035ec7670a1f 100644
 @@ -3,6 +3,7 @@
  # Makefile for sensor drivers
  #
- 
+
 +obj-$(CONFIG_VIDEO_ATOMISP_IMX)        += imx/
  obj-$(CONFIG_VIDEO_ATOMISP_OV5693)     += ov5693/
  obj-$(CONFIG_VIDEO_ATOMISP_MT9M114)    += atomisp-mt9m114.o
@@ -20194,7 +20194,7 @@ index 5a5121d958ed..92baf4cf1f49 100644
 @@ -223,6 +223,12 @@ struct camera_sensor_platform_data {
  		char *module_id);
  };
- 
+
 +struct camera_af_platform_data {
 +	int (*power_ctrl)(struct v4l2_subdev *subdev, int flag);
 +};
@@ -20209,9 +20209,9 @@ index 453bb6913550..434cd85125ec 100644
 --- a/drivers/staging/media/atomisp/pci/atomisp_fops.c
 +++ b/drivers/staging/media/atomisp/pci/atomisp_fops.c
 @@ -769,6 +769,18 @@ static int atomisp_open(struct file *file)
- 
+
  	dev_dbg(isp->dev, "open device %s\n", vdev->name);
- 
+
 +	/* Ensure that if we are still loading we block. Once the loading
 +	   is over we can proceed. We can't blindly hold the lock until
 +	   that occurs as if the load fails we'll deadlock the unload */
@@ -20225,7 +20225,7 @@ index 453bb6913550..434cd85125ec 100644
 +	rt_mutex_unlock(&isp->loading);
 +
  	rt_mutex_lock(&isp->mutex);
- 
+
  	acc_node = !strcmp(vdev->name, "ATOMISP ISP ACC");
 diff --git a/drivers/staging/media/atomisp/pci/atomisp_gmin_platform.c b/drivers/staging/media/atomisp/pci/atomisp_gmin_platform.c
 index 0df46a1af5f0..08aa5b2863a8 100644
@@ -20234,7 +20234,7 @@ index 0df46a1af5f0..08aa5b2863a8 100644
 @@ -154,6 +154,49 @@ const struct atomisp_platform_data *atomisp_get_platform_data(void)
  }
  EXPORT_SYMBOL_GPL(atomisp_get_platform_data);
- 
+
 +static int af_power_ctrl(struct v4l2_subdev *subdev, int flag)
 +{
 +	struct gmin_subdev *gs = find_gmin_subdev(subdev);
@@ -20284,7 +20284,7 @@ index 0df46a1af5f0..08aa5b2863a8 100644
 @@ -321,6 +364,20 @@ static struct gmin_cfg_var i8880_vars[] = {
  	{},
  };
- 
+
 +/* These are guessed values because Surface 3 doesn't describe these
 + * values in DSDT or EFI. */
 +static struct gmin_cfg_var surface3_vars[] = {
@@ -20326,11 +20326,11 @@ index 0df46a1af5f0..08aa5b2863a8 100644
 +	},
  	{}
  };
- 
+
 @@ -521,9 +596,22 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
- 
+
  	dev_info(dev, "%s: ACPI path is %pfw\n", __func__, dev_fwnode(dev));
- 
+
 -	/*WA:CHT requires XTAL clock as PLL is not stable.*/
 +	/*
 +	 * FIXME:
@@ -20349,21 +20349,21 @@ index 0df46a1af5f0..08aa5b2863a8 100644
  	gs->clock_src = gmin_get_var_int(dev, false, "ClkSrc",
 -				         VLV2_CLK_PLL_19P2MHZ);
 +				         gs->clock_src);
- 
+
  	gs->csi_port = gmin_get_var_int(dev, false, "CsiPort", 0);
  	gs->csi_lanes = gmin_get_var_int(dev, false, "CsiLanes", 1);
 @@ -612,7 +700,7 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
- 
+
  	/* Fall-back use EFI and/or DMI match */
  	if (clock_num < 0)
 -		clock_num = gmin_get_var_int(dev, false, "CamClk", 0);
 +		clock_num = gmin_get_var_int(dev, false, "CamClk", 1);
- 
+
  	if (clock_num < 0 || clock_num > MAX_CLK_COUNT) {
  		dev_err(dev, "Invalid clock number\n");
 @@ -1145,7 +1233,7 @@ static int gmin_get_config_dsm_var(struct device *dev,
  #endif
- 
+
  	/* Seek for the desired var */
 -	for (i = 0; i < obj->package.count - 1; i += 2) {
 +	for (i = 0; (i + 1) < obj->package.count; i += 2) {
@@ -20392,16 +20392,16 @@ index 0114b040247b..0d0b1cd5fa95 100644
 +++ b/drivers/staging/media/atomisp/pci/atomisp_v4l2.c
 @@ -1569,6 +1569,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
  	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
- 
+
  	rt_mutex_init(&isp->mutex);
 +	rt_mutex_init(&isp->loading);
  	mutex_init(&isp->streamoff_mutex);
  	spin_lock_init(&isp->lock);
- 
+
 @@ -1751,6 +1752,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
  		pci_write_config_dword(pdev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL, csi_afe_trim);
  	}
- 
+
 +	rt_mutex_lock(&isp->loading);
 +
  	err = atomisp_initialize_modules(isp);
@@ -20413,9 +20413,9 @@ index 0114b040247b..0d0b1cd5fa95 100644
  	isp->css_env.isp_css_fw.data = NULL;
 +	isp->ready = true;
 +	rt_mutex_unlock(&isp->loading);
- 
+
  	atomisp_drvfs_init(isp);
- 
+
 @@ -1825,6 +1830,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
  register_entities_fail:
  	atomisp_uninitialize_modules(isp);
@@ -20429,7 +20429,7 @@ index 2bd39b4939f1..dd6bb1fd8e7d 100644
 --- a/drivers/staging/media/atomisp/pci/hmm/hmm.c
 +++ b/drivers/staging/media/atomisp/pci/hmm/hmm.c
 @@ -209,10 +209,17 @@ int hmm_init(void)
- 
+
  void hmm_cleanup(void)
  {
 -	if (!dummy_ptr)
@@ -20437,7 +20437,7 @@ index 2bd39b4939f1..dd6bb1fd8e7d 100644
 +	/* FIXME: Sometimes "!dummy_ptr" is true although it doesn't seem
 +	 * to be NULL (why?). So, call this first. */
  	sysfs_remove_group(&atomisp_dev->kobj, atomisp_attribute_group);
- 
+
 +	if (!dummy_ptr) {
 +		dev_warn(atomisp_dev,
 +				"%s: '!dummy_ptr' is true. skipping further cleanups.\n",

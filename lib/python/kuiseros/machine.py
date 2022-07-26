@@ -69,7 +69,7 @@ class LivenessStat:
         else:
             self.alive = None
             self.rtt = 0
-    
+
     def __str__(self) -> str:
         if self.alive is None:
             return "Unknown"

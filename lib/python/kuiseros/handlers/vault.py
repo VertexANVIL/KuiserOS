@@ -50,7 +50,7 @@ class VaultHandler(BaseHandler):
 
     def __init__(self):
         self._client = self._get_client()
-    
+
     def _get_client(self) -> hvac.Client:
         """
         Attempts to perform basic validation on the client
@@ -68,7 +68,7 @@ class VaultHandler(BaseHandler):
             return None
 
         return client
-    
+
     def _ensure_approle(self, id: str, config: dict) -> str:
         name = f"kos_automatic.{id}"
 
@@ -88,7 +88,7 @@ class VaultHandler(BaseHandler):
         except Exception:
             logger.error(f"Failed to create AppRole {name}")
             return None
-        
+
         return name
 
     def _push_approle(self, conn: fabric.Connection, role: str):
@@ -165,7 +165,7 @@ class VaultHandler(BaseHandler):
                 self._push_template(
                     conn, template["id"], template["text"], key["folder"]
                 )
-        
+
         logger.debug(f"{len(keys)} keys deployed")
 
     def run(self, machine: Machine):
@@ -175,14 +175,14 @@ class VaultHandler(BaseHandler):
         config = machine.config.get("vault", {})
         if not config["appRole"]["enable"]:
             return
-        
+
         logger.debug(f"Updating Vault configuration for {machine.id}")
 
         # If we don't have an approle name, we'll provision it ourselves
         role = config["appRole"]["name"]
         if not role:
             role = self._ensure_approle(machine.id, config["appRole"])
-        
+
         # Approle creation failed?
         if not role:
             return

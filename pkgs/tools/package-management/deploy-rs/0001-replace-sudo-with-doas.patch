@@ -4,10 +4,9 @@ index b93b9ae..0e5a9fd 100644
 +++ b/src/lib.rs
 @@ -348,7 +348,7 @@ impl<'a> DeployData<'a> {
          };
- 
+
          let sudo: Option<String> = match self.merged_settings.user {
 -            Some(ref user) if user != &ssh_user => Some(format!("sudo -u {}", user)),
 +            Some(ref user) if user != &ssh_user => Some(format!("doas -u {}", user)),
              _ => None,
          };
- 

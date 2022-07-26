@@ -1,13 +1,13 @@
 { ... }:
 {
-    # enable gdm and gnome
-    services.xserver = {
-        displayManager.gdm.enable = true;
-        desktopManager.gnome.enable = true;
-    };
+  # enable gdm and gnome
+  services.xserver = {
+    displayManager.gdm.enable = true;
+    desktopManager.gnome.enable = true;
+  };
 
-    services.gnome = {
-        chrome-gnome-shell.enable = true;
-        gnome-keyring.enable = true;
-    };
+  services.gnome = {
+    chrome-gnome-shell.enable = true;
+    gnome-keyring.enable = true;
+  };
 }

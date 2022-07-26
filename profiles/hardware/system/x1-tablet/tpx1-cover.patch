@@ -8,12 +8,12 @@
 + * Linux Lenovo X1 Gen 3 Tablet cover driver:
 + *  - Lenovo X1 Gen 3 Tablet
   */
- 
+
  /*
 @@ -51,6 +54,20 @@
  	bool fn_lock;
  };
- 
+
 +struct lenovo_drvdata_tpx1 {
 +    int led_state;
 +    struct led_classdev led_mute;
@@ -29,12 +29,12 @@
 +};
 +
  #define map_key_clear(c) hid_map_usage_clear(hi, usage, bit, max, EV_KEY, (c))
- 
+
  #define TP10UBKBD_LED_OUTPUT_REPORT	9
 @@ -255,6 +272,47 @@
  	return 0;
  }
- 
+
 +static int lenovo_input_mapping_tpx1gen3(struct hid_device *hdev,
 +						struct hid_input *hi, struct hid_field *field,
 +						struct hid_usage *usage, unsigned long **bit, int *max)
@@ -92,7 +92,7 @@
 @@ -495,6 +556,74 @@
  	return 0;
  }
- 
+
 +static enum led_brightness lenovo_led_brightness_get_tpx1(struct led_classdev *led_cdev)
 +{
 +    struct device *dev = led_cdev->dev->parent;
@@ -176,7 +176,7 @@
 @@ -992,6 +1123,111 @@
  	return ret;
  }
- 
+
 +static int lenovo_tpx1gen3_configure(struct hid_device *hdev)
 +{
 +	struct hid_report *report = hdev->report_enum[HID_OUTPUT_REPORT].report_id_hash[9];

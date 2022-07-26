@@ -9,7 +9,7 @@ It provides:
 
 ## Example
 
-This is an example of the configuration of a single router node, 
+This is an example of the configuration of a single router node,
 
 ```nix
 services.eidolon = {
@@ -49,8 +49,8 @@ services.eidolon = {
             ifog = {
                 asn = 34927;
                 types = [ "upstream" ];
-                
-                regions = { 
+
+                regions = {
                     fra1 = {
                         v4addrs = "193.148.249.1";
                         v6addrs = "2a0c:9a40:1::1";

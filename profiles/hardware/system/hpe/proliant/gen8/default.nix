@@ -1,3 +1,3 @@
 {
-    services.hardware.hp-ams.enable = true;
+  services.hardware.hp-ams.enable = true;
 }

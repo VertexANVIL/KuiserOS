@@ -13,7 +13,7 @@ class KeyProtector():
     """
     def seal(plaintext: str) -> str:
         raise NotImplementedError()
-    
+
     def unseal(plaintext: str) -> str:
         raise NotImplementedError()
 
@@ -37,7 +37,7 @@ class VaultKeyProtector():
 class CryptoController():
     def __init__(self, protectors: List[KeyProtector]):
         self._protectors = protectors
-    
+
     def seal(plaintext: str) -> str:
         pass
 

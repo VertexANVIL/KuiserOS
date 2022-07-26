@@ -1,9 +1,11 @@
-{ lib, ... }: let
-    inherit (lib.kuiser) mkProfile;
+{ lib, ... }:
+let
+  inherit (lib.kuiser) mkProfile;
 
-    mkTemplate = p: mkProfile {
-        requires.profiles = [ "roles/iso" ] ++ p;
-    };
-in {
-    default = mkTemplate [ ];
+  mkTemplate = p: mkProfile {
+    requires.profiles = [ "roles/iso" ] ++ p;
+  };
+in
+{
+  default = mkTemplate [ ];
 }

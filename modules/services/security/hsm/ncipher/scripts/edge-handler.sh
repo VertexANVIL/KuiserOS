@@ -47,7 +47,7 @@ done
 
 echo -n "$config_string" > "$STATE_FILE"
 
-# on insert, the edge takes some time to be ready... wait   
+# on insert, the edge takes some time to be ready... wait
 if [ "$1" == "insert" ]; then
     echo "INFO: Waiting for the Edge to be ready: ETA 30 seconds"
     sleep 30

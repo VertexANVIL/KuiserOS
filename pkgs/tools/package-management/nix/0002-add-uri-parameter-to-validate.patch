@@ -7,13 +7,13 @@ index bd18fbdc4..55f354d0f 100644
  #include <nlohmann/json-validator.cpp>
  #include <nlohmann/json.hpp>
 +#include <nlohmann/string-format-check.cpp>
- 
+
  class custom_error_handler : public error_handler
  {
 @@ -24,6 +25,18 @@ class custom_error_handler : public error_handler
      }
  };
- 
+
 +static void validator_format_checker(const std::string &format, const std::string &value)
 +{
 +    // todo - implement; for now, this is a passthrough; the same as what Kubeval does
@@ -28,15 +28,15 @@ index bd18fbdc4..55f354d0f 100644
 +
  namespace nix
  {
- 
+
 @@ -31,25 +44,29 @@ static void prim_validateAsJSON(EvalState &state, const Pos &pos, Value **args,
  {
      state.forceValue(*args[0], pos);
      state.forceValue(*args[1], pos);
 +    state.forceValue(*args[2], pos);
- 
+
      PathSet context;
-+  
++
 +    const std::string uriStr = state.forceString(*args[1], context, pos);
 +
      std::ostringstream dataStr;
@@ -44,14 +44,14 @@ index bd18fbdc4..55f354d0f 100644
      printValueAsJSON(state, true, *args[0], schemaStr, context);
 -    printValueAsJSON(state, true, *args[1], dataStr, context);
 +    printValueAsJSON(state, true, *args[2], dataStr, context);
- 
+
      nlohmann::json dataJson = nlohmann::json::parse(dataStr.str());
      nlohmann::json schemaJson = nlohmann::json::parse(schemaStr.str());
- 
+
 -    nlohmann::json_schema::json_validator validator;
 +    nlohmann::json_schema::json_validator validator(nullptr, validator_format_checker);
      custom_error_handler validator_error_handler;
- 
+
      state.mkAttrs(v, 2);
      try
      {
@@ -64,7 +64,7 @@ index bd18fbdc4..55f354d0f 100644
      }
      catch (const std::exception &e)
 @@ -64,9 +81,9 @@ static void prim_validateAsJSON(EvalState &state, const Pos &pos, Value **args,
- 
+
  static RegisterPrimOp r_validateAsJSON({
      .name = "validateAsJSON",
 -    .args = {"schema", "data"},
@@ -126,7 +126,7 @@ index d4358081c..dbd5b303b 100644
 +        //     { // at() did not find it
 +        //     }
 +        // }
- 
+
          // get or create a schema_ref
          auto r = file.unresolved.lower_bound(uri.fragment());
 diff --git a/tests/lang/eval-okay-builtins-validateAsJSON.nix b/tests/lang/eval-okay-builtins-validateAsJSON.nix

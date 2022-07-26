@@ -1,5 +1,5 @@
 {
-    description = "Package sources";
-    inputs = { };
-    outputs = { ... }: { };
+  description = "Package sources";
+  inputs = { };
+  outputs = { ... }: { };
 }

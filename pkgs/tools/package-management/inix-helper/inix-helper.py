@@ -43,7 +43,7 @@ def resolve_path(tree: Mapping, curr: Mapping, path: List[str]) -> Mapping:
     # last component means it's a root
     if len(path) == 1:
         return tree[path[0]]
-    
+
     # find and resolve the newest segment
     node = curr
     for _ in path:
@@ -65,7 +65,7 @@ def build_url_map(tree: Mapping, curr: Mapping, curr_path: List[str] = [], depth
     """
     Builds the entire tree of url -> input paths
     """
-    
+
     nodes = {}
     for name in curr.get("inputs", {}).keys():
         path = curr_path + [name]
@@ -128,7 +128,7 @@ def build_nix_params() -> List[str]:
     for url, paths in url_overrides.items():
         for path in paths:
             params.extend(["--override-input", path, url])
-    
+
     params.append("--no-write-lock-file")
     return params
 

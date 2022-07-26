@@ -1,10 +1,10 @@
 { pkgs, ... }:
 {
-    # enable development documentation
-    documentation.dev.enable = true;
+  # enable development documentation
+  documentation.dev.enable = true;
 
-    # nix related tools
-    environment.systemPackages = with pkgs; [
-        manix
-    ];
+  # nix related tools
+  environment.systemPackages = with pkgs; [
+    manix
+  ];
 }

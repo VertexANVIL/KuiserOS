@@ -8,6 +8,6 @@ index 0e65bd2a..c932f857 100644
   * Larger numbers are more responsive to abrupt changes in ambient light. */
 -#define GSD_AMBIENT_BANDWIDTH_HZ       0.1f
 +#define GSD_AMBIENT_BANDWIDTH_HZ       0.01f
- 
+
  /* Convert bandwidth to time constant.  Units of constant are microseconds. */
  #define GSD_AMBIENT_TIME_CONSTANT       (G_USEC_PER_SEC * 1.0f / (2.0f * G_PI * GSD_AMBIENT_BANDWIDTH_HZ))
