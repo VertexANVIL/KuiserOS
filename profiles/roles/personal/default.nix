@@ -11,6 +11,14 @@ in mkProfile {
         "core/security/smartcard"
     ];
 
+    boot.kernel.sysctl = {
+        # required for WireGuard to work
+        "net.ipv4.conf.all.log_martians" = false;
+        "net.ipv4.conf.all.rp_filter" = false;
+        "net.ipv4.conf.default.log_martians" = false;
+        "net.ipv4.conf.default.rp_filter" = false;
+    };
+
     services = {
         # for network discovery
         avahi = {

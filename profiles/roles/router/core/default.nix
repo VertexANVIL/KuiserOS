@@ -11,6 +11,12 @@ in
     boot.kernel.sysctl = {
         "net.ipv4.ip_forward" = mkForce 1;
         "net.ipv6.conf.all.forwarding" = mkForce 1;
+
+        # disable strict reverse path set in the hardening profile
+        "net.ipv4.conf.all.log_martians" = false;
+        "net.ipv4.conf.all.rp_filter" = false;
+        "net.ipv4.conf.default.log_martians" = false;
+        "net.ipv4.conf.default.rp_filter" = false;
     };
 
     networking = {

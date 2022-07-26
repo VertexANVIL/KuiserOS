@@ -7,13 +7,6 @@
         trustedUsers = [ "root" "@wheel" ];
     };
 
-    boot = {
-        # don't need ntfs for production
-        blacklistedKernelModules = [ "ntfs" ];
-
-        kernel.sysctl = {
-            # Disable kernel tracing
-            "kernel.ftrace_enabled" = false;
-        };
-    };
+    # don't need ntfs for production
+    boot.blacklistedKernelModules = [ "ntfs" ];
 }

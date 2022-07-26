@@ -11,6 +11,7 @@
             "/var/log"
             "/var/lib/bluetooth"
             "/var/lib/boltd"
+            "/var/lib/opensnitch"
             "/var/lib/systemd/coredump"
             "/var/lib/tpm"
             "/etc/NetworkManager/system-connections"
