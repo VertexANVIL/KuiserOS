@@ -11,6 +11,7 @@
       "/var/log"
       "/var/lib/bluetooth"
       "/var/lib/boltd"
+      "/var/lib/clamav"
       "/var/lib/opensnitch"
       "/var/lib/systemd/coredump"
       "/var/lib/tpm"
@@ -23,6 +24,8 @@
       "/etc/ssh/ssh_host_ed25519_key"
       "/etc/ssh/ssh_host_rsa_key"
     ];
+
+    hideMounts = true;
   };
 
   # set up our zfs filesystem

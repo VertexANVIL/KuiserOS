@@ -3,11 +3,10 @@
   services = {
     pcscd = {
       enable = true;
-      plugins = with pkgs; [ ccid acsccid pcsc-cyberjack ];
+      plugins = with pkgs; [ ccid ];
     };
 
     udev.packages = with pkgs; [
-      yubikey-personalization
       libu2f-host
     ];
   };

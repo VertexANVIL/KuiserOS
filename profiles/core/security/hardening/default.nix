@@ -24,10 +24,12 @@ in
     logRefusedConnections = lib.mkDefault false;
   };
 
-  environment = {
-    memoryAllocator.provider = "scudo";
-    variables.SCUDO_OPTIONS = "ZeroContents=1";
-  };
+  # nice to have but breaks some applications, like spotify
+  # that obviously have memory corruption bugs
+  # environment = {
+  #   memoryAllocator.provider = "scudo";
+  #   variables.SCUDO_OPTIONS = "ZeroContents=1";
+  # };
 
   boot = {
     blacklistedKernelModules = [

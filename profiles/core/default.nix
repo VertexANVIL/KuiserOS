@@ -57,5 +57,8 @@ mkProfile {
       recommendedProxySettings = lib.mkDefault true;
       recommendedTlsSettings = lib.mkDefault true;
     };
+
+    # enable the system MTA
+    postfix.enable = true;
   };
 }
