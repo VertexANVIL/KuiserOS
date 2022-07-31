@@ -6,6 +6,7 @@ mkProfile {
   imports = [
     ./nfs-fixes.nix
     ./nix-helpers.nix
+    ./updates.nix
   ];
 
   requires.profiles = [
@@ -50,9 +51,6 @@ mkProfile {
     fwupd.enable = true;
     udisks2.enable = true;
     earlyoom.enable = true;
-
-    # Required even if using KDE
-    gnome.gnome-keyring.enable = true;
   };
 
   security = {

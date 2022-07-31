@@ -2,7 +2,7 @@
 {
   # reference: https://grahamc.com/blog/erase-your-darlings
   # nuke the temporary root volume on boot
-  boot.initrd.postDeviceCommands = lib.mkAfter ''
+  boot.initrd.postDeviceCommands = lib.mkOrder 5000 ''
     zfs rollback -r rpool/local/root@blank
   ''; # touch /etc/NIXOS
 
