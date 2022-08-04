@@ -31,10 +31,10 @@ let
       # ==================================
       ${mkChain "FORWARD" "eidolon-bfw"}
 
+      ${cfg.forward}
+
       # clamp TCP packet MSS to path MTU
       ip46tables -A eidolon-bfw -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-
-      ${cfg.forward}
 
       # ==================================
       # End of preconfigured rules
