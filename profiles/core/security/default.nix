@@ -4,7 +4,6 @@ let
 in
 mkProfile {
   requires.profiles = [
-    "core/security/antivirus"
     "core/security/certs"
     "core/security/doas"
     "core/security/hardening"

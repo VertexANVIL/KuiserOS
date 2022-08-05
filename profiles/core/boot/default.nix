@@ -1,7 +1,7 @@
 { lib, pkgs, ... }:
 {
   boot = {
-    tmpOnTmpfs = true; # TODO only if "big enough" ?
+    #tmpOnTmpfs = true; # TODO only if "big enough" ?
     cleanTmpDir = true;
 
     loader = {
