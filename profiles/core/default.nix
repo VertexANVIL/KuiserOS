@@ -6,6 +6,7 @@ in
 mkProfile {
   requires.profiles = [
     "core/boot"
+    "core/compat"
     "core/nix"
     "core/security"
 
