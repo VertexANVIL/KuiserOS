@@ -4,6 +4,6 @@
   system.autoUpgrade = {
     enable = true;
     flake = "git+file:///persist/nixos";
-    flags = [ "--update-input" "nixpkgs" "--commit-lock-file" ];
+    flags = [ "--update-input" "nixpkgs" ];
   };
 }

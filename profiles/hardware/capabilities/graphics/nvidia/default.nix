@@ -19,7 +19,7 @@
     options nvidia "NVreg_DynamicPowerManagement=0x02"
   '';
 
-  hardware.nvidia.modesetting.enable = true;
+  hardware.nvidia.modesetting.enable = false;
 
   # both lines are required to support Docker
   virtualisation.docker.enableNvidia = true;
