@@ -3,6 +3,7 @@
   system.activationScripts = {
     bash = ''
       ln -sfn ${pkgs.bash}/bin/bash /bin/bash
+      ln -sfn ${pkgs.coreutils}/bin/cat /bin/cat
     '';
 
     # ty gytis-ivaskevicius!

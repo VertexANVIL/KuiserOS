@@ -15,6 +15,9 @@ final: prev: {
   vtflib = prev.callPackage ./development/libraries/vtflib { };
   #nodePackagesCustom = import ./development/node-packages { pkgs = final; };
 
+  # misc
+  canon-cups-cque = prev.callPackage ./misc/cups/drivers/canon-cque { };
+
   # os-specific
   linuxPackages = import ./os-specific/linux { inherit final prev; };
 
