@@ -2,19 +2,14 @@
 {
   # reference: https://grahamc.com/blog/erase-your-darlings
   # nuke the temporary root volume on boot
-  # boot.initrd.postDeviceCommands = lib.mkOrder 5000 ''
-  #   zfs rollback -r rpool/local/root@blank
-  # ''; # touch /etc/NIXOS
+  boot.initrd.postDeviceCommands = lib.mkOrder 5000 ''
+    zfs rollback -r rpool/local/root@blank
+  ''; # touch /etc/NIXOS
 
   environment.persistence."/persist" = {
     directories = [
       "/var/log"
-      "/var/lib/bluetooth"
-      "/var/lib/boltd"
-      "/var/lib/clamav"
-      "/var/lib/opensnitch"
-      "/var/lib/systemd/coredump"
-      "/var/lib/tpm"
+      "/var/lib"
       "/etc/NetworkManager/system-connections"
       "/etc/wireguard"
     ];

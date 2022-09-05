@@ -107,10 +107,11 @@ in
     ];
 
     # set up general pager options
-    variables = {
+    variables = rec {
       PAGER = "less -R";
       LESS = "-iFJMRW -x4";
       LESSOPEN = "|${pkgs.lesspipe}/bin/lesspipe.sh %s";
+      SYSTEMD_LESS = LESS;
 
       # Vault Production Hardening:
       # hide vault commands by default

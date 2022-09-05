@@ -2,6 +2,7 @@
 {
   system.activationScripts = {
     bash = ''
+      mkdir -m 0775 -p /bin
       ln -sfn ${pkgs.bash}/bin/bash /bin/bash
       ln -sfn ${pkgs.coreutils}/bin/cat /bin/cat
     '';

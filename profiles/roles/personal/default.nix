@@ -15,6 +15,11 @@ mkProfile {
   ];
 
   boot.kernel.sysctl = {
+    # bump up the inotify max watches to fix some file refresh issues
+    "fs.inotify.max_queued_events" = 1048576;
+    "fs.inotify.max_user_instances" = 1048576;
+    "fs.inotify.max_user_watches" = 1048576;
+
     # required for WireGuard to work
     "net.ipv4.conf.all.log_martians" = false;
     "net.ipv4.conf.all.rp_filter" = false;
