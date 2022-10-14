@@ -6,5 +6,6 @@
   ./services/networking/eidolon
   ./services/security/hsm/ncipher
   ./services/security/vault-ssh-helper
+  ./services/virtualisation
   ./services/web-apps/mediawiki
 ]
