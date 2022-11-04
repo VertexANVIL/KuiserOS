@@ -22,6 +22,8 @@
         vaapiIntel
         vaapiVdpau
       ];
+
+      setLdLibraryPath = true;
     };
 
     pulseaudio = {
