@@ -189,27 +189,27 @@ rec {
           recursiveUpdate cachix modules;
 
         # generate nixos templates
-        nixosConfigurations =
-          let
-            inherit (self._internal) users profiles;
+        # nixosConfigurations =
+        #   let
+        #     inherit (self._internal) users profiles;
 
-            system = "x86_64-linux";
-            pkgs = pkgSets.nixpkgs.${system};
+        #     system = "x86_64-linux";
+        #     pkgs = pkgSets.nixpkgs.${system};
 
-            attrs = optionalPath (root + "/templates")
-              (p: import p {
-                lib = nixosLib { inherit inputs pkgs; };
-              })
-              { };
-          in
-          mapAttrs'
-            (k: v: nameValuePair "@${k}" (mkNixosSystem {
-              inherit inputs system pkgSets;
+        #     attrs = optionalPath (root + "/templates")
+        #       (p: import p {
+        #         lib = nixosLib { inherit inputs pkgs; };
+        #       })
+        #       { };
+        #   in
+        #   mapAttrs'
+        #     (k: v: nameValuePair "@${k}" (mkNixosSystem {
+        #       inherit inputs system pkgSets;
 
-              config = v;
-              name = "nixos";
-            }))
-            attrs;
+        #       config = v;
+        #       name = "nixos";
+        #     }))
+        #     attrs;
 
         # Internal outputs used only for passing to other KuiserOS repos
         _internal = rec {

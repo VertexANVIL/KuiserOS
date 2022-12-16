@@ -67,6 +67,6 @@ stdenv.mkDerivation rec {
     description = "Develop and execute sensitive code within a FIPS 140-2 Level 3 certified nShield hardware security module.";
     homepage = "https://www.entrust.com/digital-security/hsm/products/nshield-software/codesafe";
     maintainers = with maintainers; [ citadelcore ];
-    platforms = platforms.unix;
+    platforms = [ "x86_64-linux" ];
   };
 }

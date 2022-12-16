@@ -7,8 +7,10 @@ rec {
   pkgImport = nixpkgs: overlays: system: unfree: import nixpkgs {
     inherit system overlays;
 
+    config.allowUnfree = true;
+
     # predicate for unfree packages
-    config.allowUnfreePredicate = pkg:
-      elem (pkg.pname or (parseDrvName pkg.name).name) unfree;
+    # config.allowUnfreePredicate = pkg:
+    #   elem (pkg.pname or (parseDrvName pkg.name).name) unfree;
   };
 }

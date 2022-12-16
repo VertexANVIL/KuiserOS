@@ -37,24 +37,24 @@ in
   };
 
   config = mkIf cfg.enable {
-    services.networking.tayga = with tools; {
-      enable = true;
+    # services.networking.tayga = with tools; {
+    #   enable = true;
 
-      ipv4 = {
-        inherit (cfg.ipv4) address pool;
-        router = { inherit (router.ipv4.addrs.primary) address; };
-      };
+    #   ipv4 = {
+    #     inherit (cfg.ipv4) address pool;
+    #     router = { inherit (router.ipv4.addrs.primary) address; };
+    #   };
 
-      ipv6 = {
-        inherit (cfg.ipv6) address pool;
-        router = { inherit (router.ipv6.addrs.primary) address; };
-      };
-    };
+    #   ipv6 = {
+    #     inherit (cfg.ipv6) address pool;
+    #     router = { inherit (router.ipv6.addrs.primary) address; };
+    #   };
+    # };
 
-    # advertise the v4 and v6 pools in IGP
-    services.eidolon.router = {
-      ipv4.routes.igp = [ (cfg.ipv4.pool // { interface = "nat64"; }) ];
-      ipv6.routes.igp = [ (cfg.ipv6.pool // { interface = "nat64"; }) ];
-    };
+    # # advertise the v4 and v6 pools in IGP
+    # services.eidolon.router = {
+    #   ipv4.routes.igp = [ (cfg.ipv4.pool // { interface = "nat64"; }) ];
+    #   ipv6.routes.igp = [ (cfg.ipv6.pool // { interface = "nat64"; }) ];
+    # };
   };
 }

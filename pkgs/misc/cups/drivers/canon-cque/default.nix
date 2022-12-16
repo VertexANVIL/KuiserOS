@@ -56,7 +56,7 @@ stdenv.mkDerivation rec {
     description = "Canon CQue print drivers";
     sourceProvenance = with sourceTypes; [ binaryNativeCode ];
     license = licenses.unfree;
-    platforms = platforms.linux;
+    platforms = [ "x86_64-linux" ];
     maintainers = with maintainers; [ citadelcore ];
   };
 }

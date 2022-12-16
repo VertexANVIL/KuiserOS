@@ -4,7 +4,7 @@
     python3
     nixFlakes
     colmena
-    nixos-generators
+    nixos-generate
     consul-template
     inix-helper
   ]) ++ (with pkgs.python3Packages; [

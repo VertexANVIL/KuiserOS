@@ -25,7 +25,7 @@ in
         );
       in
       (importNamed [
-        "nixos-generators"
+        "nixos-generate"
       ]))
   ];
 

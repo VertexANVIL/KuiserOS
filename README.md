@@ -37,7 +37,7 @@ Differences between KuiserOS and DevOS:
 
 ### Building Images
 
-[nixos-generators](https://github.com/nix-community/nixos-generators) is used to build KuiserOS ISOs. To generate an image, enter the shell with `nix develop`, and then use it like this:
+[nixos-generate](https://github.com/nix-community/nixos-generate) is used to build KuiserOS ISOs. To generate an image, enter the shell with `nix develop`, and then use it like this:
 
 ```
 nixos-generate -f iso --flake .#@default

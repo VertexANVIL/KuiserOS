@@ -3,7 +3,7 @@
 
   inputs = {
     # conventional nixos channels
-    nixpkgs.url = "nixpkgs/nixos-22.05";
+    nixpkgs.url = "nixpkgs/nixos-22.11";
     unstable.url = "github:ArctarusLimited/nixpkgs";
 
     # official flakes
@@ -20,7 +20,7 @@
     nixlib.url = "github:nix-community/nixpkgs.lib";
     impermanence.url = "github:nix-community/impermanence";
 
-    nixos-generators = {
+    nixos-generate = {
       url = "github:nix-community/nixos-generators";
       inputs.nixlib.follows = "nixlib";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -36,7 +36,7 @@
     colmena.url = "github:zhaofengli/colmena";
 
     home = {
-      url = "github:nix-community/home-manager/release-22.05";
+      url = "github:nix-community/home-manager/release-22.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

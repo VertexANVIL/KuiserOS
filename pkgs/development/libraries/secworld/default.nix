@@ -71,6 +71,6 @@ stdenv.mkDerivation rec {
     description = "Security World support software";
     homepage = "https://www.entrust.com/digital-security/hsm/products/nshield-software";
     maintainers = with maintainers; [ citadelcore ];
-    platforms = platforms.unix;
+    platforms = [ "x86_64-linux" ];
   };
 }
